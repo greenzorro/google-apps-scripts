@@ -4,6 +4,8 @@
 
 基于Google Apps Scripts工具集实现的自动化新闻收集系统，从RSS源获取新闻、通过AI根据标题进行分类过滤、并按日期组织保存到Google Drive。
 
+本系统起源于这个[Tasker程序](https://victor42.eth.limo/post/3652/)，用Google Apps Scripts重新实现了，在其基础上做了升级和扩展，功能更加强大。
+
 ## 🚀 核心功能
 
 ### 智能新闻收集
