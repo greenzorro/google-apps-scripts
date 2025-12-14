@@ -28,7 +28,7 @@ const RSS_FEEDS = [
     name: '中新网',
     type: 'rss',
     processGroup: 1,  // 对应 processNewsFeedGroup1() 函数
-    maxEntriesPerFeed: 30, // 该源最大处理条目数，如果未设置则使用全局配置
+    maxEntriesPerFeed: 50, // 该源最大处理条目数，如果未设置则使用全局配置
     detailPageConfig: {
         enabled: true,  // 详情页抓取
         selectors: [    // 内容选择器（按优先级尝试）
@@ -45,7 +45,7 @@ const RSS_FEEDS = [
     name: 'cnbeta',
     type: 'rss',
     processGroup: 2,  // 对应 processNewsFeedGroup2() 函数
-    maxEntriesPerFeed: 30, // 该源最大处理条目数，如果未设置则使用全局配置
+    maxEntriesPerFeed: 50, // 该源最大处理条目数，如果未设置则使用全局配置
     detailPageConfig: {
         enabled: true,  // 详情页抓取
         selectors: [    // 内容选择器（按优先级尝试）
