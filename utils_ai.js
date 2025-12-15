@@ -4,7 +4,7 @@
  * Created: 2025-12-09
  * Author: Victor Cheng
  * Email: hi@victor42.work
- * Description: AI服务工具函数库，提供多模型AI服务调用功能（Gemini、Groq、OpenRouter）。
+ * Description: AI服务工具函数库，提供多模型AI服务调用功能（Gemini、Deepseek、Groq、OpenRouter）。
  */
 
 /**
@@ -57,6 +57,64 @@ const UtilsAI = {
                      responseData.candidates[0].content.parts &&
                      responseData.candidates[0].content.parts[0] &&
                      responseData.candidates[0].content.parts[0].text;
+
+        if (reply) {
+          return reply;
+        } else {
+          throw new Error('无法从API响应中提取回复内容');
+        }
+      } else {
+        throw new Error(`API请求失败，状态码: ${response.getResponseCode()}, 响应: ${response.getContentText()}`);
+      }
+    } catch (error) {
+      throw new Error(`请求失败: ${error.message}`);
+    }
+  },
+
+  /**
+   * 向Deepseek API发送请求并获取AI回复
+   * @param {string} prompt - 要发送的提示内容
+   * @param {string} [model='deepseek-chat'] - 使用的模型名称
+   * @returns {string} AI的回复内容
+   */
+  askDeepseek: function(prompt, model) {
+    const scriptProperties = PropertiesService.getScriptProperties();
+    const apiKey = scriptProperties.getProperty('DEEPSEEK_API_KEY');
+    model = model || 'deepseek-chat';
+
+    const url = 'https://api.deepseek.com/chat/completions';
+
+    const requestData = {
+      model: model,
+      messages: [
+        {
+          role: 'user',
+          content: prompt
+        }
+      ],
+      max_tokens: 8192,
+      temperature: 0.7
+    };
+
+    const options = {
+      'method': 'post',
+      'contentType': 'application/json',
+      'headers': {
+        'Authorization': 'Bearer ' + apiKey
+      },
+      'payload': JSON.stringify(requestData),
+      'muteHttpExceptions': true
+    };
+
+    try {
+      const response = UrlFetchApp.fetch(url, options);
+      const responseData = JSON.parse(response.getContentText());
+
+      if (response.getResponseCode() === 200) {
+        const reply = responseData.choices &&
+                     responseData.choices[0] &&
+                     responseData.choices[0].message &&
+                     responseData.choices[0].message.content;
 
         if (reply) {
           return reply;

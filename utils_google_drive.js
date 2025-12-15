@@ -412,8 +412,37 @@ const UtilsGoogleDrive = {
           return !Utils.hasExcludedChars(fileName, chars);
 
         case 'no_extension':
-          // 无扩展名过滤：{ type: 'no_extension' }
-          return fileName.lastIndexOf('.') === -1;
+          // 无扩展名过滤：检查以下情况视为无扩展名：
+          // 1. 没有点 (例如：filename)
+          // 2. 最后一个点的右边紧跟着一个英文空格 (例如：filename. )
+          // 3. 以点结尾 (例如：filename.)
+          // 4. 最后一个点后面跟着常见网站域名 (例如：website.com, site.cn)
+          const lastDotIndex = fileName.lastIndexOf('.');
+
+          // 情况1：没有点 -> 无扩展名
+          if (lastDotIndex === -1) {
+            return true;
+          }
+
+          // 情况2：以点结尾 -> 无扩展名
+          if (lastDotIndex === fileName.length - 1) {
+            return true;
+          }
+
+          // 情况3：最后一个点的右边紧跟着一个英文空格 -> 无扩展名
+          if (lastDotIndex < fileName.length - 1 && fileName.charAt(lastDotIndex + 1) === ' ') {
+            return true;
+          }
+
+          // 情况4：最后一个点后面跟着常见网站域名 -> 无扩展名
+          const afterLastDot = fileName.substring(lastDotIndex + 1).toLowerCase();
+          const commonDomainExtensions = ['com', 'net', 'cn', 'gov', 'org', 'edu', 'int', 'mil', 'info', 'biz', 'name', 'pro', 'museum', 'coop', 'aero'];
+          if (commonDomainExtensions.includes(afterLastDot)) {
+            return true;
+          }
+
+          // 其他情况视为有扩展名
+          return false;
 
         case 'has_extension':
           // 有扩展名过滤：{ type: 'has_extension', extensions: ['.txt', '.csv'] }
