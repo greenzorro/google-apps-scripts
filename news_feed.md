@@ -13,7 +13,8 @@
 - **格式自适应**：自动检测和解析RSS 2.0和Atom 1.0格式
 - **批量处理**：支持多个新闻条目的并行处理，可独立配置每个源的处理数量
 
-### AI智能分类
+### AI智能分类与总结
+- **双AI服务架构**：分类使用Groq API (qwen3-32b)，总结使用OpenRouter API (z-ai/glm-4.5-air:free)
 - **多类别识别**：识别政治、财经、军事、科技、社会、娱乐、体育、天气、其他等9类新闻
 - **精确过滤规则**：
   - 自动排除体育、军事、娱乐类新闻
@@ -44,7 +45,7 @@
 - **智能判断**：在内容提取完成后进行长度检查，确保保存的新闻都有价值
 
 ### AI响应处理
-- **思考标签清理**：AI模型（qwen3-32b）返回的<think>和
+- **思考标签清理**：AI模型返回的<think>和
 </think>
 思考标签会被自动清理，确保最终内容干净整洁
 - **公共清理函数**：`NewsUtils.AI.cleanThinkingTags()`统一处理所有AI响应的思考标签
@@ -155,7 +156,7 @@ ELSE：
 最终输出格式：`保存标记,分类`（如：1,政治新闻 或 0,体育新闻）
 
 ### AI总结提示词
-AI总结使用**qwen3-32b模型**，自动提取核心信息并生成简洁版本：
+AI总结使用**OpenRouter (z-ai/glm-4.5-air:free)模型**，自动提取核心信息并生成简洁版本：
 
 ```javascript
 const AI_SUMMARIZATION_PROMPT = `请将以下新闻内容总结为不超过400字的简洁版本。要求：
@@ -229,7 +230,8 @@ AI总结：
 2. **权限要求**：`https://www.googleapis.com/auth/drive` + `https://www.googleapis.com/auth/script.external_request`
 3. **API密钥配置**：在Google Apps Script编辑器中，通过"项目设置" → "脚本属性"配置以下密钥：
    - `GEMINI_API_KEY`：Gemini AI服务密钥
-   - `GROQ_API_KEY`：Groq AI服务密钥
+   - `GROQ_API_KEY`：Groq AI服务密钥（用于新闻分类）
+   - `OPENROUTER_API_KEY`：OpenRouter AI服务密钥（用于新闻总结）
 4. **触发器设置**：通过Google Apps Script编辑器图形界面配置每日定时执行
 
 ## 🚀 使用方法
@@ -266,7 +268,7 @@ AI总结：
 // 例如：每天上午8:05执行，处理组2的RSS源
 
 // 这样可以：
-// 1. 避免触发AI API频率限制
+// 1. 分散AI API调用（分类用Groq，总结用OpenRouter），避免单点速率限制
 // 2. 确保在6分钟时限内完成
 // 3. 提高系统稳定性
 ```
@@ -292,7 +294,7 @@ processNewsFeedGroup2();  // 只处理组2
 - **分组处理**：系统提供主函数 processNewsFeedsByGroup() 和多个入口函数 processNewsFeedGroupN()，每个入口函数处理部分RSS源，避免单次执行时间过长
 - **条目限制**：每个RSS源默认最多处理50个新闻条目（可独立配置）
 - **超时设置**：网络请求30秒超时，AI请求60秒超时
-- **错峰执行**：通过配置不同的触发时间，避免AI API频率限制
+- **错峰执行**：通过配置不同的触发时间，分散AI API调用（双AI服务架构）
 - **错误跳过**：所有错误类型均跳过当前条目，继续执行后续流程
 
 ### 分组执行策略
@@ -403,6 +405,6 @@ processNewsFeedGroup2();  // 只处理组2
 
 ---
 
-**最后更新**：2025-12-12
-**状态**：已实施完成，生产环境可用（日志标准化+AI思考标签清理+日志精简优化）
+**最后更新**：2025-12-15
+**状态**：已实施完成，生产环境可用（双AI服务架构：分类用Groq，总结用OpenRouter）
 **维护者**：Victor Cheng (hi@victor42.work)

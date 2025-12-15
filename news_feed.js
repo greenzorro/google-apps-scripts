@@ -4,7 +4,7 @@
  * Created: 2025-12-09 12:14:21
  * Author: Victor Cheng
  * Email: hi@victor42.work
- * Description: RSS新闻AI过滤系统，从RSS源获取新闻，通过Groq AI根据标题进行分类过滤，
+ * Description: RSS新闻AI过滤系统，从RSS源获取新闻，通过AI进行分类和总结（分类用Groq，总结用OpenRouter），
  * 并保存到Google Drive的指定目录的自动化系统。
  */
 
@@ -607,11 +607,11 @@ const NewsUtils = {
 
       try {
         // 验证AI工具依赖
-        if (typeof UtilsAI === 'undefined' || typeof UtilsAI.askGroq !== 'function') {
+        if (typeof UtilsAI === 'undefined' || typeof UtilsAI.askOpenRouter !== 'function') {
           throw new Error('UtilsAI对象不可用，请确保已部署utils_ai.js文件');
         }
 
-        const rawResponse = UtilsAI.askGroq(prompt, 'qwen/qwen3-32b');
+        const rawResponse = UtilsAI.askOpenRouter(prompt, 'z-ai/glm-4.5-air:free');
 
         // 清理思考标签，提取最终结果
         const response = this.cleanThinkingTags(rawResponse);
