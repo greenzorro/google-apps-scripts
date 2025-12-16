@@ -4,7 +4,7 @@
  * Created: 2025-12-09 12:14:21
  * Author: Victor Cheng
  * Email: hi@victor42.work
- * Description: RSS新闻AI过滤系统，从RSS源获取新闻，通过AI进行分类和总结（分类用Groq，总结用OpenRouter），
+ * Description: RSS新闻AI过滤系统，从RSS源获取新闻，通过AI进行分类和总结（分类用Groq，总结用GLM），
  * 并保存到Google Drive的指定目录的自动化系统。
  */
 
@@ -18,7 +18,7 @@
  * - url: RSS源URL
  * - name: 源名称
  * - type: 源类型 ('rss' 或 'atom')
- * - processGroup: 处理分组编号，指定在哪个入口函数中运行（1, 2, 3...）
+ * - processGroups: 处理分组编号数组，指定在哪些入口函数中运行（[1, 2], [3, 4]...）
  * - maxEntriesPerFeed: (可选) 该源最大处理条目数，未设置则使用全局配置
  * - detailPageConfig: (可选) 详情页抓取配置
  */
@@ -27,8 +27,8 @@ const RSS_FEEDS = [
     url: 'https://www.chinanews.com.cn/rss/importnews.xml',
     name: '中新网',
     type: 'rss',
-    processGroup: 1,  // 对应 processNewsFeedGroup1() 函数
-    maxEntriesPerFeed: 50, // 该源最大处理条目数，如果未设置则使用全局配置
+    processGroups: [1, 3],  // 对应 processNewsFeedGroup1() 和 processNewsFeedGroup3() 函数
+    maxEntriesPerFeed: 20, // 该源最大处理条目数，如果未设置则使用全局配置
     detailPageConfig: {
         enabled: true,  // 详情页抓取
         selectors: [    // 内容选择器（按优先级尝试）
@@ -44,8 +44,8 @@ const RSS_FEEDS = [
     url: 'https://rss.cnbeta.com.tw',
     name: 'cnbeta',
     type: 'rss',
-    processGroup: 2,  // 对应 processNewsFeedGroup2() 函数
-    maxEntriesPerFeed: 50, // 该源最大处理条目数，如果未设置则使用全局配置
+    processGroups: [2, 4],  // 对应 processNewsFeedGroup2() 和 processNewsFeedGroup4() 函数
+    maxEntriesPerFeed: 20, // 该源最大处理条目数，如果未设置则使用全局配置
     detailPageConfig: {
         enabled: true,  // 详情页抓取
         selectors: [    // 内容选择器（按优先级尝试）
@@ -72,7 +72,7 @@ const STORAGE_CONFIG = {
  * 当RSS源未配置特定值时使用这些默认值
  */
 const PERFORMANCE_CONFIG = {
-  maxEntriesPerFeed: 50, // 每个RSS源最大处理条目数（避免超时）
+  maxEntriesPerFeed: 20, // 每个RSS源最大处理条目数（避免超时）
   requestTimeout: 30000, // 网络请求超时（毫秒）
   aiRequestTimeout: 60000 // AI请求超时（毫秒）
 };
@@ -607,11 +607,11 @@ const NewsUtils = {
 
       try {
         // 验证AI工具依赖
-        if (typeof UtilsAI === 'undefined' || typeof UtilsAI.askOpenRouter !== 'function') {
+        if (typeof UtilsAI === 'undefined' || typeof UtilsAI.askGLM !== 'function') {
           throw new Error('UtilsAI对象不可用，请确保已部署utils_ai.js文件');
         }
 
-        const rawResponse = UtilsAI.askOpenRouter(prompt, 'z-ai/glm-4.5-air:free');
+        const rawResponse = UtilsAI.askGLM(prompt, 'glm-4.6v-flash');
 
         // 清理思考标签，提取最终结果
         const response = this.cleanThinkingTags(rawResponse);
@@ -763,7 +763,7 @@ function processNewsFeedsByGroup(groupNumber) {
   }
 
   // === 2. 过滤指定分组的RSS源 ===
-  const targetFeeds = RSS_FEEDS.filter(feed => feed.processGroup === groupNumber);
+  const targetFeeds = RSS_FEEDS.filter(feed => feed.processGroups && feed.processGroups.includes(groupNumber));
 
   if (targetFeeds.length === 0) {
     Utils.logAction("分组过滤", { group: groupNumber, message: "该分组没有配置RSS源" });
@@ -785,10 +785,24 @@ function processNewsFeedsByGroup(groupNumber) {
     return;
   }
 
-  // === 4. 处理每个RSS源 ===
+  // === 4. 获取已有文件列表用于去重 ===
+  const existingFilesResult = UtilsGoogleDrive.cleanFilesInFolder(`${STORAGE_CONFIG.rootFolder}/${STORAGE_CONFIG.subFolder}`, {
+    filters: [
+      { type: 'has_extension', extensions: ['.txt'] }
+    ],
+    dryRun: true,
+    returnFileList: true
+  });
+
+  const existingFiles = existingFilesResult.fileList.map(f =>
+    f.name.substring(0, f.name.length - 4)  // 去掉.txt扩展名
+  );
+
+  // === 5. 处理每个RSS源 ===
   let totalProcessed = 0;
   let totalSaved = 0;
   let totalErrors = 0;
+  let totalSkippedExisting = 0;  // 跳过已存在的新闻数量
 
   targetFeeds.forEach(feed => {
     try {
@@ -808,6 +822,18 @@ function processNewsFeedsByGroup(groupNumber) {
         // 验证标题有效性
         if (!entry.title || entry.title.trim().length === 0) {
           Utils.logAction("跳过无效标题", { index: index + 1, reason: "标题为空" });
+          return;
+        }
+
+        // === 去重检查 ===
+        const normalizedTitle = Utils.safeFileName(entry.title, 100);
+        if (existingFiles.includes(normalizedTitle)) {
+          Utils.logAction("跳过已存在新闻", {
+            index: index + 1,
+            title: entry.title.substring(0, 50) + (entry.title.length > 50 ? '...' : ''),
+            normalizedTitle: normalizedTitle
+          });
+          totalSkippedExisting++;
           return;
         }
 
@@ -873,11 +899,11 @@ function processNewsFeedsByGroup(groupNumber) {
     }
   });
 
-  // === 5. 生成执行摘要 ===
+  // === 6. 生成执行摘要 ===
   const skipped = totalProcessed - totalSaved;
   const summary = {
     count: totalSaved,
-    message: `组${groupNumber} - 共处理 ${totalProcessed} 个新闻，保存 ${totalSaved} 个，跳过 ${skipped} 个，错误 ${totalErrors} 个`
+    message: `组${groupNumber} - 获取 ${targetFeeds.reduce((sum, feed) => sum + (feed.maxEntriesPerFeed || PERFORMANCE_CONFIG.maxEntriesPerFeed), 0)} 个候选新闻，处理 ${totalProcessed} 个新新闻，保存 ${totalSaved} 个，跳过 ${skipped} 个（已存在: ${totalSkippedExisting}），错误 ${totalErrors} 个`
   };
 
   // 记录性能统计
@@ -885,6 +911,8 @@ function processNewsFeedsByGroup(groupNumber) {
     group: groupNumber,
     rssSources: targetFeeds.length,
     maxEntriesPerFeed: PERFORMANCE_CONFIG.maxEntriesPerFeed,
+    existingFiles: existingFiles.length,
+    skippedExisting: totalSkippedExisting,
     successRate: totalProcessed > 0 ? Math.round((totalSaved / totalProcessed) * 100) : 0
   });
 
@@ -893,7 +921,7 @@ function processNewsFeedsByGroup(groupNumber) {
 
 /**
  * 新闻收集入口函数 - 第1组
- * 调用主函数 processNewsFeedsByGroup(1) 处理 processGroup=1 的RSS源
+ * 调用主函数 processNewsFeedsByGroup(1) 处理 processGroups 包含 1 的RSS源
  */
 function processNewsFeedGroup1() {
   processNewsFeedsByGroup(1);
@@ -901,8 +929,24 @@ function processNewsFeedGroup1() {
 
 /**
  * 新闻收集入口函数 - 第2组
- * 调用主函数 processNewsFeedsByGroup(2) 处理 processGroup=2 的RSS源
+ * 调用主函数 processNewsFeedsByGroup(2) 处理 processGroups 包含 2 的RSS源
  */
 function processNewsFeedGroup2() {
   processNewsFeedsByGroup(2);
+}
+
+/**
+ * 新闻收集入口函数 - 第3组
+ * 调用主函数 processNewsFeedsByGroup(3) 处理 processGroups 包含 3 的RSS源
+ */
+function processNewsFeedGroup3() {
+  processNewsFeedsByGroup(3);
+}
+
+/**
+ * 新闻收集入口函数 - 第4组
+ * 调用主函数 processNewsFeedsByGroup(4) 处理 processGroups 包含 4 的RSS源
+ */
+function processNewsFeedGroup4() {
+  processNewsFeedsByGroup(4);
 }

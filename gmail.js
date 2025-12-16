@@ -23,25 +23,22 @@ function gmailAutoArchive() {
   // --- 2. 计算归档的时间分界线 ---
   // 使用工具函数计算时间分界线，替代手动计算
   const cutoffDate = Utils.getDateDaysAgo(DELAY_DAYS);
-  
-  // 使用工具函数记录扫描信息
-  Utils.logScanRange("邮件会话", 0, {
-    extra: `将要归档"最后消息时间"早于 ${cutoffDate.toLocaleString()} 的邮件会话`
-  });
 
   // --- 3. 获取收件箱中的邮件会话 ---
   // 注意: 此脚本只检查主收件箱，不包括任何特定标签。
   // GmailApp.getInboxThreads(0, BATCH_SIZE) 从第0个会话开始，最多获取 BATCH_SIZE 个。
   const threads = GmailApp.getInboxThreads(0, BATCH_SIZE);
-  
+
   if (threads.length === 0) {
     Logger.log("收件箱中没有邮件会话需要检查。脚本结束。");
     Utils.logEnd("Gmail 自动归档", { count: 0, message: "没有邮件会话需要检查" });
     return;
   }
-  
+
   // 使用工具函数记录扫描统计
-  Utils.logScanRange("邮件会话", threads.length);
+  Utils.logScanRange("邮件会话", threads.length, {
+    extra: `将要归档"最后消息时间"早于 ${cutoffDate.toLocaleString()} 的邮件会话`
+  });
 
   // --- 4. 遍历并处理每一个邮件会话 ---
   let archivedCount = 0; // 用于统计本次运行归档了多少会话
@@ -95,11 +92,6 @@ function gmailAutoTrash() {
   // 使用工具函数计算时间分界线，替代手动计算
   const cutoffDate = Utils.getDateDaysAgo(DELAY_DAYS);
 
-  // 使用工具函数记录扫描信息
-  Utils.logScanRange("邮件会话", 0, {
-    extra: `将要删除"最后消息时间"早于 ${cutoffDate.toLocaleString()} 的邮件会话`
-  });
-
   // --- 3. 获取所有邮件会话（All Mail） ---
   // 注意: 此脚本检查所有邮件会话，包括收件箱和已归档的邮件。
   // 使用 search 查询来获取所有邮件（不包括垃圾箱和垃圾邮件）
@@ -116,7 +108,7 @@ function gmailAutoTrash() {
 
   // 使用工具函数记录扫描统计
   Utils.logScanRange("邮件会话", threads.length, {
-    extra: `从 ${allThreads.length} 个1年前的老邮件中选取前 ${BATCH_SIZE} 个进行处理`
+    extra: `从 ${allThreads.length} 个1年前的老邮件中选取前 ${BATCH_SIZE} 个进行处理，将要删除"最后消息时间"早于 ${cutoffDate.toLocaleString()} 的邮件会话`
   });
 
   // --- 4. 遍历并处理每一个邮件会话 ---
