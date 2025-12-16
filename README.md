@@ -47,7 +47,7 @@ routine/google_apps_scripts/
 - `utils.js` - 所有业务脚本的必需依赖，提供核心工具函数（数学计算、时间处理、文本处理、HTML处理、日志记录）
 - `utils_google_drive.js` - Google Drive操作工具库（文件夹、文件管理、清理功能）
 - `utils_google_sheets.js` - Google Sheets操作工具库（数据读取、更新、查找功能）
-- `utils_ai.js` - AI服务工具库（Gemini、Deepseek、Groq、OpenRouter API调用）
+- `utils_ai.js` - AI服务工具库（Gemini、Deepseek、GLM、Groq、OpenRouter API调用）
 - `utils_network.js` - 网络请求工具库（HTTP请求、重定向处理、超时控制）
 
 **业务功能脚本：**
@@ -150,7 +150,7 @@ gdriveCleanAiStudio();           // Drive清理
 - `UtilsGoogleDrive.ensureNestedFolderExists(folderPath)` - 确保嵌套文件夹路径存在，如果不存在则创建
 - `UtilsGoogleDrive.saveOrUpdateFile(folder, fileName, content)` - 保存或更新文件到指定文件夹
 
-- `UtilsGoogleDrive.cleanFilesInFolder(target, options)` - 通用文件处理引擎，支持多种过滤条件和操作，返回处理统计结果。当target是路径字符串时，使用`getFolderByPath()`获取文件夹。
+- `UtilsGoogleDrive.cleanFilesInFolder(target, options)` - 通用文件处理引擎，支持多种过滤条件和操作，返回处理统计结果。当target是路径字符串时，使用`getFolderByPath()`获取文件夹。支持`returnFileList: true`选项返回符合条件的文件列表。
 - `UtilsGoogleDrive.isFileOlderThan(file, timeThreshold, timeField)` - 判断文件是否早于指定时间，支持字符串格式（如"7d"、"18h"）
 - **过滤条件类型**：
   - `time` - 时间过滤（支持`olderThan`参数和`field`字段）
@@ -176,12 +176,13 @@ gdriveCleanAiStudio();           // Drive清理
 - `UtilsGoogleSheets.updateSheetByContentMatch(targetFileName, targetSheetName, searchColumn, sourceFile, searchRange, dataRange, updateRangeStart)` - 基于内容匹配的智能数据更新
 
 ### 4.4 `utils_ai.js` - AI服务工具库
-**功能：** 提供多模型AI服务调用功能（Gemini、Deepseek、Groq、OpenRouter），采用命名空间模式封装在UtilsAI对象中
+**功能：** 提供多模型AI服务调用功能（Gemini、Deepseek、GLM、Groq、OpenRouter），采用命名空间模式封装在UtilsAI对象中
 - **设计模式：** 命名空间封装，避免全局作用域污染
 
 #### AI服务调用工具
 - `UtilsAI.askGemini(prompt, model)` - 调用Google Gemini API获取AI回复
 - `UtilsAI.askDeepseek(prompt, model)` - 调用Deepseek API获取AI回复
+- `UtilsAI.askGLM(prompt, model)` - 调用智谱GLM API获取AI回复
 - `UtilsAI.askGroq(prompt, model)` - 调用Groq API获取AI回复
 - `UtilsAI.askOpenRouter(prompt, model)` - 调用OpenRouter API获取AI回复
 
@@ -342,10 +343,10 @@ const success2 = UtilsGoogleSheets.updateSheetByContentMatch("目标表格", "�
 
 ### 4.10 `demo_models.js` - AI模型调用演示脚本
 **功能：** 演示如何使用UtilsAI对象中的AI服务工具函数进行各种AI模型的调用测试
-- **支持平台：** 多AI服务集成 (Gemini, Deepseek, Groq, OpenRouter)
+- **支持平台：** 多AI服务集成 (Gemini, Deepseek, GLM, Groq, OpenRouter)
 
 #### 核心功能
-- **多模型支持**：集成Gemini、Deepseek、Groq、OpenRouter四大AI服务
+- **多模型支持**：集成Gemini、Deepseek、GLM、Groq、OpenRouter五大AI服务
 - **统一接口**：通过UtilsAI对象统一调用不同AI服务
 - **测试演示**：展示各种AI模型的调用方法和响应格式
 - **标准化日志**：使用Utils.logStart()、Utils.logEnd()记录测试过程
@@ -358,6 +359,7 @@ testAllAIServices();
 // 使用工具函数
 const geminiResponse = UtilsAI.askGemini('你好，请用一句话介绍你自己。', 'gemini-2.5-flash');
 const deepseekResponse = UtilsAI.askDeepseek('你好，请用一句话介绍你自己。', 'deepseek-chat');
+const glmResponse = UtilsAI.askGLM('你好，请用一句话介绍你自己。', 'glm-4.6v-flash');
 const groqResponse = UtilsAI.askGroq('你好，请用一句话介绍你自己。', 'moonshotai/kimi-k2-instruct-0905');
 const openrouterResponse = UtilsAI.askOpenRouter('你好，请用一句话介绍你自己。', 'z-ai/glm-4.5-air:free');
 ```

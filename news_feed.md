@@ -14,7 +14,7 @@
 - **批量处理**：支持多个新闻条目的并行处理，可独立配置每个源的处理数量
 
 ### AI智能分类与总结
-- **双AI服务架构**：分类使用Groq API (qwen3-32b)，总结使用OpenRouter API (z-ai/glm-4.5-air:free)
+- **双AI服务架构**：分类使用Groq API (qwen3-32b)，总结使用GLM API (glm-4.6v-flash)
 - **多类别识别**：识别政治、财经、军事、科技、社会、娱乐、体育、天气、其他等9类新闻
 - **精确过滤规则**：
   - 自动排除体育、军事、娱乐类新闻
@@ -67,7 +67,7 @@
 | **NewsUtils.RSS** | RSS处理模块 | `fetchAndParse()`, `parseRSS()`, `parseAtom()`, `getElementText()`, `getLink()` |
 | **NewsUtils.Content** | 内容提取模块 | `extractNewsContent()`, `fetchDetailPageContent()`, `cleanFooterContent()`, `getContentSourceName()` |
 | **NewsUtils.AI** | AI模块 | `classifyNewsByTitle()`, `summarizeContent()`, `cleanThinkingTags()` |
-| **NewsUtils.Storage** | 存储管理模块 | `createNewsDateFolder()`, `formatNewsContent()`, `saveNewsToDrive()` |
+| **NewsUtils.Storage** | 存储管理模块 | `createNewsDateFolder()`(实际不按日期分文件夹), `formatNewsContent()`, `saveNewsToDrive()` |
 
 ## ⚙️ 配置说明
 
@@ -78,8 +78,8 @@ const RSS_FEEDS = [
     url: 'https://www.chinanews.com.cn/rss/importnews.xml',
     name: '中新网',
     type: 'rss',
-    processGroup: 1,  // 对应 processNewsFeedGroup1() 函数
-    maxEntriesPerFeed: 50,  // 该源最大处理条目数，如果未设置则使用全局配置
+    processGroups: [1, 3],  // 对应 processNewsFeedGroup1() 和 processNewsFeedGroup3() 函数
+    maxEntriesPerFeed: 20,  // 该源最大处理条目数，如果未设置则使用全局配置
     detailPageConfig: {
         enabled: true,  // 启用详情页抓取
         selectors: [    // 内容选择器（按优先级尝试）
@@ -96,8 +96,8 @@ const RSS_FEEDS = [
     url: 'https://rss.cnbeta.com.tw',
     name: 'cnbeta',
     type: 'rss',
-    processGroup: 2,  // 对应 processNewsFeedGroup2() 函数
-    maxEntriesPerFeed: 10,  // 该源最大处理条目数，如果未设置则使用全局配置
+    processGroups: [2, 4],  // 对应 processNewsFeedGroup2() 和 processNewsFeedGroup4() 函数
+    maxEntriesPerFeed: 20,  // 该源最大处理条目数，如果未设置则使用全局配置
     detailPageConfig: {
         enabled: true,  // 启用详情页抓取
         selectors: [    // 内容选择器（按优先级尝试）
@@ -124,7 +124,7 @@ const STORAGE_CONFIG = {
 ### 性能配置
 ```javascript
 const PERFORMANCE_CONFIG = {
-  maxEntriesPerFeed: 50,  // 每个RSS源最大处理条目数（避免超时）
+  maxEntriesPerFeed: 20,  // 每个RSS源最大处理条目数（避免超时）
   requestTimeout: 30000,     // 网络请求超时（毫秒）
   aiRequestTimeout: 60000    // AI请求超时（毫秒）
 };
@@ -141,7 +141,7 @@ const CONTENT_CONFIG = {
 ```
 
 ### AI分类提示词
-AI分类使用**qwen3-32b模型**，通过if...else逻辑结构实现精确的分类判断：
+AI分类使用**Groq (llama3-70b-8192)模型**，通过if...else逻辑结构实现精确的分类判断：
 
 ```javascript
 IF 分类是 体育新闻 OR 军事新闻 OR 娱乐新闻：
@@ -156,7 +156,7 @@ ELSE：
 最终输出格式：`保存标记,分类`（如：1,政治新闻 或 0,体育新闻）
 
 ### AI总结提示词
-AI总结使用**OpenRouter (z-ai/glm-4.5-air:free)模型**，自动提取核心信息并生成简洁版本：
+AI总结使用**GLM (glm-4.6v-flash)模型**，自动提取核心信息并生成简洁版本：
 
 ```javascript
 const AI_SUMMARIZATION_PROMPT = `请将以下新闻内容总结为不超过400字的简洁版本。要求：
@@ -229,9 +229,8 @@ AI总结：
 1. **基础部署**：`utils.js` + `utils_ai.js` + `utils_google_drive.js` + `utils_network.js` + `news_feed.js`
 2. **权限要求**：`https://www.googleapis.com/auth/drive` + `https://www.googleapis.com/auth/script.external_request`
 3. **API密钥配置**：在Google Apps Script编辑器中，通过"项目设置" → "脚本属性"配置以下密钥：
-   - `GEMINI_API_KEY`：Gemini AI服务密钥
    - `GROQ_API_KEY`：Groq AI服务密钥（用于新闻分类）
-   - `OPENROUTER_API_KEY`：OpenRouter AI服务密钥（用于新闻总结）
+   - `GLM_API_KEY`：智谱GLM AI服务密钥（用于新闻总结）
 4. **触发器设置**：通过Google Apps Script编辑器图形界面配置每日定时执行
 
 ## 🚀 使用方法
@@ -249,7 +248,7 @@ AI总结：
 ### 2. 配置RSS源
 根据需要修改`news_feed.js`开头的`RSS_FEEDS`配置：
 - 添加新的RSS源URL
-- 配置`processGroup`指定在哪个入口函数中运行（1, 2, 3...）
+- 配置`processGroups`指定在哪些入口函数中运行（数组格式，如[1, 3]）
 - 配置`maxEntriesPerFeed`控制该源最大处理条目数
 - 配置详情页选择器（如果需要抓取详情页）
 - 调整性能参数
@@ -267,10 +266,17 @@ AI总结：
 // 触发器2：每天运行 processNewsFeedGroup2()
 // 例如：每天上午8:05执行，处理组2的RSS源
 
+// 触发器3：每天运行 processNewsFeedGroup3()
+// 例如：每天上午8:10执行，处理组3的RSS源
+
+// 触发器4：每天运行 processNewsFeedGroup4()
+// 例如：每天上午8:15执行，处理组4的RSS源
+
 // 这样可以：
-// 1. 分散AI API调用（分类用Groq，总结用OpenRouter），避免单点速率限制
+// 1. 分散AI API调用（分类用Groq，总结用GLM），避免单点速率限制
 // 2. 确保在6分钟时限内完成
 // 3. 提高系统稳定性
+// 4. 真正实现"处理N条全新新闻"，通过去重机制避免重复处理
 ```
 
 #### 方案二：单入口函数（测试用）
@@ -278,6 +284,8 @@ AI总结：
 // 在Google Apps Script编辑器中手动运行
 processNewsFeedGroup1();  // 只处理组1
 processNewsFeedGroup2();  // 只处理组2
+processNewsFeedGroup3();  // 只处理组3
+processNewsFeedGroup4();  // 只处理组4
 
 // 或创建临时触发器
 // 建议：仅用于测试，生产环境使用方案一
@@ -292,15 +300,16 @@ processNewsFeedGroup2();  // 只处理组2
 
 ### 避免执行超时
 - **分组处理**：系统提供主函数 processNewsFeedsByGroup() 和多个入口函数 processNewsFeedGroupN()，每个入口函数处理部分RSS源，避免单次执行时间过长
-- **条目限制**：每个RSS源默认最多处理50个新闻条目（可独立配置）
+- **条目限制**：每个RSS源默认最多处理20个新闻条目（可独立配置）
 - **超时设置**：网络请求30秒超时，AI请求60秒超时
 - **错峰执行**：通过配置不同的触发时间，分散AI API调用（双AI服务架构）
 - **错误跳过**：所有错误类型均跳过当前条目，继续执行后续流程
+- **去重机制**：在获取阶段检查已有文件，只处理真正全新的新闻，节省AI API调用
 
 ### 分组执行策略
-- **分组配置**：通过RSS源的`processGroup`字段（1, 2, 3...）指定运行组别
+- **分组配置**：通过RSS源的`processGroups`字段（数组格式，如[1, 3]）指定运行组别
 - **时间间隔**：建议相邻触发器间隔5-10分钟执行
-- **负载均衡**：可根据RSS源特性调整分组，避免不均衡
+- **负载均衡**：每个RSS源可分配到多个组，实现负载分散
 - **执行时间**：每个组预估执行时间约2-3分钟，完全在6分钟限制内
 
 ### 内存管理
@@ -342,8 +351,8 @@ processNewsFeedGroup2();  // 只处理组2
 ### 故障排查
 | 问题现象 | 可能原因 | 解决方案 |
 |----------|---------|----------|
-| **脚本执行超时** | 处理新闻条目过多或分组不均衡 | 减少`maxEntriesPerFeed`配置值，调整`processGroup`分配 |
-| **RSS源未被处理** | `processGroup`配置错误或触发器未配置 | 检查RSS源的`processGroup`值，确认触发器配置正确 |
+| **脚本执行超时** | 处理新闻条目过多或分组不均衡 | 减少`maxEntriesPerFeed`配置值，调整`processGroups`分配 |
+| **RSS源未被处理** | `processGroups`配置错误或触发器未配置 | 检查RSS源的`processGroups`数组值，确认触发器配置正确 |
 | **AI服务异常** | 网络问题或服务不可用 | 检查网络连接，确认服务状态 |
 | **文件保存失败** | Google Drive权限不足 | 检查脚本的Drive API权限配置 |
 | **RSS获取失败** | RSS源URL变更或网络问题 | 验证RSS源URL有效性，检查网络连接 |
@@ -355,11 +364,11 @@ processNewsFeedGroup2();  // 只处理组2
 ### 添加新的RSS源
 1. 在`RSS_FEEDS`数组中添加新的配置对象
 2. 配置`url`、`name`、`type`字段
-3. 配置`processGroup`指定所属的入口函数（1, 2, 3...）
+3. 配置`processGroups`指定所属的入口函数（数组格式，如[1, 3]）
 4. 配置`maxEntriesPerFeed`（可选）
 5. 如有需要，配置`detailPageConfig`选择器
 6. 测试新源的获取和解析功能
-7. 确保触发器配置正确，包含新的RSS源所在组
+7. 确保触发器配置正确，包含新的RSS源所在的所有组（1-4）
 
 ### 调整AI分类规则
 1. 修改`AI_CLASSIFICATION_PROMPT`提示词
@@ -369,9 +378,8 @@ processNewsFeedGroup2();  // 只处理组2
 
 ### 自定义存储结构
 1. 修改`STORAGE_CONFIG`中的路径配置
-2. 调整日期文件夹格式
-3. 自定义文件名生成规则
-4. 更新文件内容格式
+2. 自定义文件名生成规则
+3. 更新文件内容格式
 
 ### 性能调优
 1. 调整`PERFORMANCE_CONFIG`中的超时和限制参数
@@ -405,6 +413,6 @@ processNewsFeedGroup2();  // 只处理组2
 
 ---
 
-**最后更新**：2025-12-15
-**状态**：已实施完成，生产环境可用（双AI服务架构：分类用Groq，总结用OpenRouter）
+**最后更新**：2025-12-16
+**状态**：已实施完成，生产环境可用（双AI服务架构：分类用Groq，总结用GLM，支持4组触发器和去重机制）
 **维护者**：Victor Cheng (hi@victor42.work)

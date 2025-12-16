@@ -236,7 +236,8 @@ const UtilsGoogleDrive = {
         filters: [],
         action: 'trash',
         maxFiles: 0, // 0表示无限制
-        dryRun: false
+        dryRun: false,
+        returnFileList: false // 是否返回符合条件的文件列表（不执行实际操作）
       };
       const config = { ...defaults, ...options };
 
@@ -262,10 +263,7 @@ const UtilsGoogleDrive = {
         return { success: false, error: errorMsg, processed: 0, actioned: 0 };
       }
 
-      // 记录扫描信息
-      Utils.logScanRange("Drive文件", 0, {
-        extra: `正在扫描文件夹: '${folder.getName()}' (ID: ${folder.getId()})`
-      });
+      // 记录扫描信息（在扫描完成后记录实际数量）
 
       if (config.dryRun) {
         Utils.logAction("试运行模式", { extra: "不实际执行文件操作" });
@@ -276,6 +274,7 @@ const UtilsGoogleDrive = {
       let processed = 0;
       let actioned = 0;
       const skippedFiles = [];
+      const fileList = []; // 收集符合条件的文件列表
 
       while (files.hasNext() && (config.maxFiles === 0 || processed < config.maxFiles)) {
         const file = files.next();
@@ -297,6 +296,16 @@ const UtilsGoogleDrive = {
 
         if (shouldAction) {
           actioned++;
+
+          // 收集符合条件的文件信息
+          if (config.returnFileList) {
+            fileList.push({
+              name: file.getName(),
+              id: file.getId(),
+              size: file.getSize(),
+              lastUpdated: file.getLastUpdated()
+            });
+          }
 
           // 执行操作
           if (!config.dryRun) {
@@ -323,6 +332,11 @@ const UtilsGoogleDrive = {
         }
       }
 
+      // 记录扫描信息
+      Utils.logScanRange("Drive文件", processed, {
+        extra: `正在扫描文件夹: '${folder.getName()}' (ID: ${folder.getId()})`
+      });
+
       // 生成结果摘要
       const summary = {
         success: true,
@@ -331,7 +345,10 @@ const UtilsGoogleDrive = {
         actioned: actioned,
         skipped: skippedFiles.length,
         skippedDetails: skippedFiles,
-        dryRun: config.dryRun
+        dryRun: config.dryRun,
+        count: actioned,  // 为Utils.logEnd兼容添加count字段
+        message: `扫描了 ${processed} 个文件，处理了 ${actioned} 个文件，跳过 ${skippedFiles.length} 个文件`,
+        fileList: config.returnFileList ? fileList : undefined  // 返回文件列表（仅当returnFileList为true时）
       };
 
       Utils.logEnd("Google Drive文件处理", summary);
@@ -339,7 +356,7 @@ const UtilsGoogleDrive = {
 
     } catch (error) {
       Utils.logError(error, "文件处理");
-      return { success: false, error: error.message, processed: 0, actioned: 0 };
+      return { success: false, error: error.message, processed: 0, actioned: 0, fileList: [] };
     }
   },
 
@@ -436,8 +453,8 @@ const UtilsGoogleDrive = {
 
           // 情况4：最后一个点后面跟着常见网站域名 -> 无扩展名
           const afterLastDot = fileName.substring(lastDotIndex + 1).toLowerCase();
-          const commonDomainExtensions = ['com', 'net', 'cn', 'gov', 'org', 'edu', 'int', 'mil', 'info', 'biz', 'name', 'pro', 'museum', 'coop', 'aero'];
-          if (commonDomainExtensions.includes(afterLastDot)) {
+          const commonDomainExtensions = ['com', 'net', 'cn', 'gov', 'org', 'edu'];
+          if (commonDomainExtensions.some(ext => afterLastDot.startsWith(ext))) {
             return true;
           }
 

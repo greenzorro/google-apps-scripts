@@ -21,9 +21,6 @@ function monitorCalendarChanges() {
   // 使用工具函数计算月份范围，替代手动计算
   const { startTime, endTime } = Utils.getMonthRange(6, 6); // 前后6个月
 
-  // 使用工具函数记录扫描范围，替代直接Logger.log
-  Utils.logScanRange("日历事件", 0, { start: startTime, end: endTime });
-
   // --- 2. 获取日历和所有事件 ---
   const calendar = CalendarApp.getDefaultCalendar();
   const events = calendar.getEvents(startTime, endTime);
@@ -33,9 +30,11 @@ function monitorCalendarChanges() {
     Utils.logEnd("日历监控", { count: 0, message: "没有找到任何日历事件" });
     return;
   }
-  
+
   // 使用工具函数记录扫描统计，替代直接Logger.log
-  Utils.logScanRange("日历事件", events.length);
+  Utils.logScanRange("日历事件", events.length, {
+    extra: `时间范围: ${startTime.toLocaleDateString()} 到 ${endTime.toLocaleDateString()}`
+  });
 
   const mostRecentEvent = events.reduce((latestEvent, currentEvent) => {
     return currentEvent.getLastUpdated() > latestEvent.getLastUpdated() ? currentEvent : latestEvent;
