@@ -357,7 +357,7 @@ const success2 = UtilsGoogleSheets.updateSheetByContentMatch("目标表格", "�
 testAllAIServices();
 
 // 使用工具函数
-const geminiResponse = UtilsAI.askGemini('你好，请用一句话介绍你自己。', 'gemini-2.5-flash');
+const geminiResponse = UtilsAI.askGemini('你好，请用一句话介绍你自己。', 'gemini-flash-lite-latest');
 const deepseekResponse = UtilsAI.askDeepseek('你好，请用一句话介绍你自己。', 'deepseek-chat');
 const glmResponse = UtilsAI.askGLM('你好，请用一句话介绍你自己。', 'glm-4.6v-flash');
 const groqResponse = UtilsAI.askGroq('你好，请用一句话介绍你自己。', 'moonshotai/kimi-k2-instruct-0905');
