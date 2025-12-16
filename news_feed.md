@@ -14,7 +14,7 @@
 - **批量处理**：支持多个新闻条目的并行处理，可独立配置每个源的处理数量
 
 ### AI智能分类与总结
-- **双AI服务架构**：分类使用Groq API (qwen3-32b)，总结使用GLM API (glm-4.6v-flash)
+- **双AI服务架构**：分类使用Groq API (qwen3-32b)，总结使用DeepSeek API (deepseek-chat)
 - **多类别识别**：识别政治、财经、军事、科技、社会、娱乐、体育、天气、其他等9类新闻
 - **精确过滤规则**：
   - 自动排除体育、军事、娱乐类新闻
@@ -156,7 +156,7 @@ ELSE：
 最终输出格式：`保存标记,分类`（如：1,政治新闻 或 0,体育新闻）
 
 ### AI总结提示词
-AI总结使用**GLM (glm-4.6v-flash)模型**，自动提取核心信息并生成简洁版本：
+AI总结使用**DeepSeek (deepseek-chat)模型**，自动提取核心信息并生成简洁版本：
 
 ```javascript
 const AI_SUMMARIZATION_PROMPT = `请将以下新闻内容总结为不超过400字的简洁版本。要求：
@@ -230,7 +230,7 @@ AI总结：
 2. **权限要求**：`https://www.googleapis.com/auth/drive` + `https://www.googleapis.com/auth/script.external_request`
 3. **API密钥配置**：在Google Apps Script编辑器中，通过"项目设置" → "脚本属性"配置以下密钥：
    - `GROQ_API_KEY`：Groq AI服务密钥（用于新闻分类）
-   - `GLM_API_KEY`：智谱GLM AI服务密钥（用于新闻总结）
+   - `DEEPSEEK_API_KEY`：DeepSeek AI服务密钥（用于新闻总结）
 4. **触发器设置**：通过Google Apps Script编辑器图形界面配置每日定时执行
 
 ## 🚀 使用方法
@@ -273,7 +273,7 @@ AI总结：
 // 例如：每天上午8:15执行，处理组4的RSS源
 
 // 这样可以：
-// 1. 分散AI API调用（分类用Groq，总结用GLM），避免单点速率限制
+// 1. 分散AI API调用（分类用Groq，总结用DeepSeek），避免单点速率限制
 // 2. 确保在6分钟时限内完成
 // 3. 提高系统稳定性
 // 4. 真正实现"处理N条全新新闻"，通过去重机制避免重复处理
@@ -302,7 +302,7 @@ processNewsFeedGroup4();  // 只处理组4
 - **分组处理**：系统提供主函数 processNewsFeedsByGroup() 和多个入口函数 processNewsFeedGroupN()，每个入口函数处理部分RSS源，避免单次执行时间过长
 - **条目限制**：每个RSS源默认最多处理20个新闻条目（可独立配置）
 - **超时设置**：网络请求30秒超时，AI请求60秒超时
-- **错峰执行**：通过配置不同的触发时间，分散AI API调用（双AI服务架构）
+- **错峰执行**：通过配置不同的触发时间，分散AI API调用（分类用Groq，总结用DeepSeek）
 - **错误跳过**：所有错误类型均跳过当前条目，继续执行后续流程
 - **去重机制**：在获取阶段检查已有文件，只处理真正全新的新闻，节省AI API调用
 
@@ -414,5 +414,5 @@ processNewsFeedGroup4();  // 只处理组4
 ---
 
 **最后更新**：2025-12-16
-**状态**：已实施完成，生产环境可用（双AI服务架构：分类用Groq，总结用GLM，支持4组触发器和去重机制）
+**状态**：已实施完成，生产环境可用（双AI服务架构：分类用Groq，总结用DeepSeek，支持4组触发器和去重机制）
 **维护者**：Victor Cheng (hi@victor42.work)
