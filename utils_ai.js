@@ -21,13 +21,13 @@ const UtilsAI = {
   /**
    * 向Google Gemini API发送请求并获取AI回复
    * @param {string} prompt - 要发送的提示内容
-   * @param {string} [model='gemini-2.5-flash'] - 使用的模型名称
+   * @param {string} [model='gemini-flash-lite-latest'] - 使用的模型名称
    * @returns {string} AI的回复内容
    */
   askGemini: function(prompt, model) {
     const scriptProperties = PropertiesService.getScriptProperties();
     const apiKey = scriptProperties.getProperty('GEMINI_API_KEY');
-    model = model || 'gemini-2.5-flash';
+    model = model || 'gemini-flash-lite-latest';
 
     const url = `https://generativelanguage.googleapis.com/v1beta/models/${model}:generateContent?key=${apiKey}`;
 

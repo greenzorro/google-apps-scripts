@@ -16,7 +16,7 @@ function testAllAIServices() {
   Utils.logStart("AI模型测试");
 
   Logger.log('--- 测试 Gemini API ---');
-  const geminiResponse = UtilsAI.askGemini('你好，请用一句话介绍你自己。', 'gemini-2.5-flash');
+  const geminiResponse = UtilsAI.askGemini('你好，请用一句话介绍你自己。', 'gemini-flash-lite-latest');
   Logger.log('Gemini AI回复: ' + geminiResponse);
 
   Logger.log('--- 测试 Deepseek API ---');
