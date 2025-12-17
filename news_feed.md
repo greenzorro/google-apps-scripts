@@ -14,7 +14,7 @@
 - **批量处理**：支持多个新闻条目的并行处理，可独立配置每个源的处理数量
 
 ### AI智能分类与总结
-- **双AI服务架构**：分类使用Groq API (qwen/qwen3-32b)，总结使用Gemini API (gemini-flash-lite-latest)
+- **双AI服务架构**：分类使用专用AI模型，总结使用专用AI模型
 - **多类别识别**：识别政治、财经、军事、科技、社会、娱乐、体育、天气、其他等9类新闻
 - **精确过滤规则**：
   - 自动排除体育、军事、娱乐类新闻
@@ -141,7 +141,7 @@ const CONTENT_CONFIG = {
 ```
 
 ### AI分类提示词
-AI分类使用**Groq (qwen/qwen3-32b)模型**，通过if...else逻辑结构实现精确的分类判断：
+AI分类使用**专用分类模型**，通过if...else逻辑结构实现精确的分类判断：
 
 ```javascript
 IF 分类是 体育新闻 OR 军事新闻 OR 娱乐新闻：
@@ -156,7 +156,7 @@ ELSE：
 最终输出格式：`保存标记,分类`（如：1,政治新闻 或 0,体育新闻）
 
 ### AI总结提示词
-AI总结使用**Gemini (gemini-flash-lite-latest)模型**，自动提取核心信息并生成简洁版本：
+AI总结使用**专用总结模型**，自动提取核心信息并生成简洁版本：
 
 ```javascript
 const AI_SUMMARIZATION_PROMPT = `请将以下新闻内容总结为不超过400字的简洁版本。要求：
@@ -229,8 +229,8 @@ AI总结：
 1. **基础部署**：`utils.js` + `utils_ai.js` + `utils_google_drive.js` + `utils_network.js` + `news_feed.js`
 2. **权限要求**：`https://www.googleapis.com/auth/drive` + `https://www.googleapis.com/auth/script.external_request`
 3. **API密钥配置**：在Google Apps Script编辑器中，通过"项目设置" → "脚本属性"配置以下密钥：
-   - `GROQ_API_KEY`：Groq AI服务密钥（用于新闻分类）
-   - `GEMINI_API_KEY`：Gemini AI服务密钥（用于新闻总结）
+   - 分类服务密钥：根据使用的AI服务商配置相应密钥名称（用于新闻分类）
+   - 总结服务密钥：根据使用的AI服务商配置相应密钥名称（用于新闻总结）
 4. **触发器设置**：通过Google Apps Script编辑器图形界面配置每日定时执行
 
 ## 🚀 使用方法
@@ -273,7 +273,7 @@ AI总结：
 // 例如：每天上午8:15执行，处理组4的RSS源
 
 // 这样可以：
-// 1. 分散AI API调用（分类用Groq，总结用Gemini），避免单点速率限制
+// 1. 分散AI API调用（分类用专用模型，总结用专用模型），避免单点速率限制
 // 2. 确保在6分钟时限内完成
 // 3. 提高系统稳定性
 // 4. 真正实现"处理N条全新新闻"，通过去重机制避免重复处理
@@ -302,7 +302,7 @@ processNewsFeedGroup4();  // 只处理组4
 - **分组处理**：系统提供主函数 processNewsFeedsByGroup() 和多个入口函数 processNewsFeedGroupN()，每个入口函数处理部分RSS源，避免单次执行时间过长
 - **条目限制**：每个RSS源默认目标处理20个新新闻（真正通过去重过滤的新闻数，可独立配置）
 - **超时设置**：网络请求30秒超时，AI请求60秒超时
-- **错峰执行**：通过配置不同的触发时间，分散AI API调用（分类用Groq，总结用Gemini）
+- **错峰执行**：通过配置不同的触发时间，分散AI API调用（分类用专用模型，总结用专用模型）
 - **错误跳过**：所有错误类型均跳过当前条目，继续执行后续流程
 - **去重机制**：在获取阶段检查已有文件，只处理真正全新的新闻，节省AI API调用
 
@@ -414,5 +414,5 @@ processNewsFeedGroup4();  // 只处理组4
 ---
 
 **最后更新**：2025-12-17
-**状态**：已实施完成，生产环境可用（双AI服务架构：分类用Groq (qwen3-32b)，总结用Gemini (gemini-flash-lite-latest)，支持4组触发器和去重机制）
+**状态**：已实施完成，生产环境可用（双AI服务架构：分类用专用模型，总结用专用模型，支持4组触发器和去重机制）
 **维护者**：Victor Cheng (hi@victor42.work)

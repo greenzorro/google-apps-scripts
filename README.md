@@ -47,7 +47,7 @@ routine/google_apps_scripts/
 - `utils.js` - 所有业务脚本的必需依赖，提供核心工具函数（数学计算、时间处理、文本处理、HTML处理、日志记录）
 - `utils_google_drive.js` - Google Drive操作工具库（文件夹、文件管理、清理功能）
 - `utils_google_sheets.js` - Google Sheets操作工具库（数据读取、更新、查找功能）
-- `utils_ai.js` - AI服务工具库（Gemini、Deepseek、Groq API调用）
+- `utils_ai.js` - AI服务工具库（支持多种AI服务API调用）
 - `utils_network.js` - 网络请求工具库（HTTP请求、重定向处理、超时控制）
 
 **业务功能脚本：**
@@ -176,13 +176,13 @@ gdriveCleanAiStudio();           // Drive清理
 - `UtilsGoogleSheets.updateSheetByContentMatch(targetFileName, targetSheetName, searchColumn, sourceFile, searchRange, dataRange, updateRangeStart)` - 基于内容匹配的智能数据更新
 
 ### 4.4 `utils_ai.js` - AI服务工具库
-**功能：** 提供多模型AI服务调用功能（Gemini、Deepseek、Groq），采用命名空间模式封装在UtilsAI对象中
+**功能：** 提供多模型AI服务调用功能（支持多种AI服务），采用命名空间模式封装在UtilsAI对象中
 - **设计模式：** 命名空间封装，避免全局作用域污染
 
 #### AI服务调用工具
-- `UtilsAI.askGemini(prompt, model)` - 调用Google Gemini API获取AI回复
-- `UtilsAI.askDeepseek(prompt, model)` - 调用Deepseek API获取AI回复
-- `UtilsAI.askGroq(prompt, model)` - 调用Groq API获取AI回复
+- `UtilsAI.askGemini(prompt, model)` - 调用AI服务API获取AI回复
+- `UtilsAI.askDeepseek(prompt, model)` - 调用AI服务API获取AI回复
+- `UtilsAI.askGroq(prompt, model)` - 调用AI服务API获取AI回复
 
 ### 4.5 `utils_network.js` - 网络请求工具库
 **功能：** 提供通用HTTP请求功能，支持重定向、超时、用户代理配置等，采用命名空间模式封装在UtilsNetwork对象中
@@ -341,10 +341,10 @@ const success2 = UtilsGoogleSheets.updateSheetByContentMatch("目标表格", "�
 
 ### 4.10 `demo_models.js` - AI模型调用演示脚本
 **功能：** 演示如何使用UtilsAI对象中的AI服务工具函数进行各种AI模型的调用测试
-- **支持平台：** 多AI服务集成 (Gemini, Deepseek, Groq)
+- **支持平台：** 多AI服务集成（支持多种AI服务）
 
 #### 核心功能
-- **多模型支持**：集成Gemini、Deepseek、Groq三大AI服务
+- **多模型支持**：集成多种AI服务
 - **统一接口**：通过UtilsAI对象统一调用不同AI服务
 - **测试演示**：展示各种AI模型的调用方法和响应格式
 - **标准化日志**：使用Utils.logStart()、Utils.logEnd()记录测试过程
@@ -355,9 +355,9 @@ const success2 = UtilsGoogleSheets.updateSheetByContentMatch("目标表格", "�
 testAllAIServices();
 
 // 使用工具函数
-const geminiResponse = UtilsAI.askGemini('你好，请用一句话介绍你自己。', 'gemini-flash-lite-latest');
-const deepseekResponse = UtilsAI.askDeepseek('你好，请用一句话介绍你自己。', 'deepseek-chat');
-const groqResponse = UtilsAI.askGroq('你好，请用一句话介绍你自己。', 'moonshotai/kimi-k2-instruct-0905');
+const geminiResponse = UtilsAI.askGemini('你好，请用一句话介绍你自己。', 'model-name-1');
+const deepseekResponse = UtilsAI.askDeepseek('你好，请用一句话介绍你自己。', 'model-name-2');
+const groqResponse = UtilsAI.askGroq('你好，请用一句话介绍你自己。', 'model-name-3');
 ```
 
 ## 5. 使用场景
