@@ -4,7 +4,7 @@
  * Created: 2025-12-09 12:14:21
  * Author: Victor Cheng
  * Email: hi@victor42.work
- * Description: RSS新闻AI过滤系统，从RSS源获取新闻，通过AI进行分类和总结（分类用Groq，总结用DeepSeek），
+ * Description: RSS新闻AI过滤系统，从RSS源获取新闻，通过AI进行分类和总结（分类用Groq，总结用Gemini），
  * 并保存到Google Drive的指定目录的自动化系统。
  */
 
@@ -19,7 +19,7 @@
  * - name: 源名称
  * - type: 源类型 ('rss' 或 'atom')
  * - processGroups: 处理分组编号数组，指定在哪些入口函数中运行（[1, 2], [3, 4]...）
- * - maxEntriesPerFeed: (可选) 该源最大处理条目数，未设置则使用全局配置
+ * - maxEntriesPerFeed: (可选) 该源目标新新闻数量（真正通过去重过滤的新闻数），未设置则使用全局配置
  * - detailPageConfig: (可选) 详情页抓取配置
  */
 const RSS_FEEDS = [
@@ -28,7 +28,7 @@ const RSS_FEEDS = [
     name: '中新网',
     type: 'rss',
     processGroups: [1, 3],  // 对应 processNewsFeedGroup1() 和 processNewsFeedGroup3() 函数
-    maxEntriesPerFeed: 20, // 该源最大处理条目数，如果未设置则使用全局配置
+    maxEntriesPerFeed: 20, // 该源目标新新闻数量（真正通过去重过滤的新闻数）
     detailPageConfig: {
         enabled: true,  // 详情页抓取
         selectors: [    // 内容选择器（按优先级尝试）
@@ -45,7 +45,7 @@ const RSS_FEEDS = [
     name: 'cnbeta',
     type: 'rss',
     processGroups: [2, 4],  // 对应 processNewsFeedGroup2() 和 processNewsFeedGroup4() 函数
-    maxEntriesPerFeed: 20, // 该源最大处理条目数，如果未设置则使用全局配置
+    maxEntriesPerFeed: 20, // 该源目标新新闻数量（真正通过去重过滤的新闻数）
     detailPageConfig: {
         enabled: true,  // 详情页抓取
         selectors: [    // 内容选择器（按优先级尝试）
@@ -72,7 +72,7 @@ const STORAGE_CONFIG = {
  * 当RSS源未配置特定值时使用这些默认值
  */
 const PERFORMANCE_CONFIG = {
-  maxEntriesPerFeed: 20, // 每个RSS源最大处理条目数（避免超时）
+  maxEntriesPerFeed: 20, // 每个RSS源目标新新闻数量（真正通过去重过滤的新闻数）
   requestTimeout: 30000, // 网络请求超时（毫秒）
   aiRequestTimeout: 60000 // AI请求超时（毫秒）
 };
@@ -117,6 +117,7 @@ ELSE：
 
 最终输出格式：保存标记,分类
 例如：1,政治新闻 或 0,体育新闻
+禁止在输出中添加任何解释或额外信息，思考过程只能放在思考标签中。
 
 新闻标题如下：`;
 
@@ -607,11 +608,11 @@ const NewsUtils = {
 
       try {
         // 验证AI工具依赖
-        if (typeof UtilsAI === 'undefined' || typeof UtilsAI.askDeepseek !== 'function') {
+        if (typeof UtilsAI === 'undefined' || typeof UtilsAI.askGemini !== 'function') {
           throw new Error('UtilsAI对象不可用，请确保已部署utils_ai.js文件');
         }
 
-        const rawResponse = UtilsAI.askDeepseek(prompt, 'deepseek-chat');
+        const rawResponse = UtilsAI.askGemini(prompt, 'gemini-flash-lite-latest');
 
         // 清理思考标签，提取最终结果
         const response = this.cleanThinkingTags(rawResponse);
@@ -806,23 +807,26 @@ function processNewsFeedsByGroup(groupNumber) {
 
   targetFeeds.forEach(feed => {
     try {
-      // 获取该源的最大处理条目数，如果未配置则使用全局默认
-      const maxEntries = feed.maxEntriesPerFeed || PERFORMANCE_CONFIG.maxEntriesPerFeed;
+      // 获取该源的目标新新闻数量，如果未配置则使用全局默认
+      const maxNewEntries = feed.maxEntriesPerFeed || PERFORMANCE_CONFIG.maxEntriesPerFeed;
 
-      Utils.logAction("处理RSS源", { name: feed.name, url: feed.url, maxEntries: maxEntries });
+      Utils.logAction("处理RSS源", { name: feed.name, url: feed.url, targetNewEntries: maxNewEntries });
 
       const entries = NewsUtils.RSS.fetchAndParse(feed.url, feed.type);
-      const limitedEntries = entries.slice(0, maxEntries);
 
       Utils.logScanRange("新闻条目", entries.length, {
-        extra: `来源: ${feed.name}, 处理限制: ${maxEntries} 个`
+        extra: `来源: ${feed.name}, 目标: 筛选${maxNewEntries}个新新闻`
       });
 
-      limitedEntries.forEach((entry, index) => {
+      let processedCount = 0;  // 记录已处理的新新闻数量
+
+      // 遍历所有条目，直到处理了maxNewEntries个新新闻
+      for (let index = 0; index < entries.length && processedCount < maxNewEntries; index++) {
+        const entry = entries[index];
         // 验证标题有效性
         if (!entry.title || entry.title.trim().length === 0) {
           Utils.logAction("跳过无效标题", { index: index + 1, reason: "标题为空" });
-          return;
+          continue;
         }
 
         // === 去重检查 ===
@@ -834,9 +838,11 @@ function processNewsFeedsByGroup(groupNumber) {
             normalizedTitle: normalizedTitle
           });
           totalSkippedExisting++;
-          return;
+          continue;
         }
 
+        // 这是一条新新闻！
+        processedCount++;
         totalProcessed++;
 
         try {
@@ -852,17 +858,39 @@ function processNewsFeedsByGroup(groupNumber) {
 
             // 检查内容长度：小于最小阈值丢弃，大于最大阈值使用AI总结，之间保存原文
             if (extractedContent.length > CONTENT_CONFIG.maxContentLength) {
+              // 【日志】准备执行AI总结
+              Utils.logAction("执行AI总结", {
+                title: entry.title.substring(0, 50) + (entry.title.length > 50 ? '...' : ''),
+                extra: `原文长度: ${extractedContent.length}字符，超过阈值${CONTENT_CONFIG.maxContentLength}字符`
+              });
+
               // 调用AI总结
               const summarizedContent = NewsUtils.AI.summarizeContent(extractedContent);
               // 思考标签已在summarizeContent函数中清理
               finalContent = summarizedContent;
 
               isAISummarized = true;
+
+              // 【日志】AI总结完成
+              Utils.logAction("AI总结完成", {
+                title: entry.title.substring(0, 50) + (entry.title.length > 50 ? '...' : ''),
+                extra: `原文: ${extractedContent.length}字符 → 总结: ${finalContent.length}字符`
+              });
+            } else {
+              // 【日志】跳过AI总结，保存原文
+              Utils.logAction("跳过AI总结", {
+                title: entry.title.substring(0, 50) + (entry.title.length > 50 ? '...' : ''),
+                extra: `内容长度: ${extractedContent.length}字符，未超过阈值${CONTENT_CONFIG.maxContentLength}字符`
+              });
             }
 
             // 检查最终内容长度，如果小于最小阈值则跳过
             if (finalContent.length < CONTENT_CONFIG.minContentLength) {
-              return; // 跳过这条新闻，进入下一个循环
+              Utils.logAction("跳过新闻", {
+                title: entry.title.substring(0, 50) + (entry.title.length > 50 ? '...' : ''),
+                extra: `最终内容长度${finalContent.length}字符小于最小阈值${CONTENT_CONFIG.minContentLength}字符`
+              });
+              continue; // 跳过这条新闻，进入下一个循环
             }
 
             // 构建新闻内容，包含来源、分类、标题、正文
@@ -890,7 +918,7 @@ function processNewsFeedsByGroup(groupNumber) {
           Utils.logError(error, `处理新闻: ${entry.title?.substring(0, 50)}...`);
           totalErrors++;
         }
-      });
+      } // end for loop
 
     } catch (error) {
       // RSS获取或解析错误：跳过整个源，记录错误
@@ -903,14 +931,15 @@ function processNewsFeedsByGroup(groupNumber) {
   const skipped = totalProcessed - totalSaved;
   const summary = {
     count: totalSaved,
-    message: `组${groupNumber} - 获取 ${targetFeeds.reduce((sum, feed) => sum + (feed.maxEntriesPerFeed || PERFORMANCE_CONFIG.maxEntriesPerFeed), 0)} 个候选新闻，处理 ${totalProcessed} 个新新闻，保存 ${totalSaved} 个，跳过 ${skipped} 个（已存在: ${totalSkippedExisting}），错误 ${totalErrors} 个`
+    message: `组${groupNumber} - 目标: ${targetFeeds.reduce((sum, feed) => sum + (feed.maxEntriesPerFeed || PERFORMANCE_CONFIG.maxEntriesPerFeed), 0)} 个新新闻，实际处理 ${totalProcessed} 个新新闻，保存 ${totalSaved} 个，跳过 ${skipped} 个（已存在: ${totalSkippedExisting}），错误 ${totalErrors} 个`
   };
 
   // 记录性能统计
   Utils.logAction("性能统计", {
     group: groupNumber,
     rssSources: targetFeeds.length,
-    maxEntriesPerFeed: PERFORMANCE_CONFIG.maxEntriesPerFeed,
+    targetNewEntries: PERFORMANCE_CONFIG.maxEntriesPerFeed,
+    actualNewEntries: totalProcessed,
     existingFiles: existingFiles.length,
     skippedExisting: totalSkippedExisting,
     successRate: totalProcessed > 0 ? Math.round((totalSaved / totalProcessed) * 100) : 0
