@@ -4,7 +4,7 @@
  * Created: 2025-12-09 12:14:21
  * Author: Victor Cheng
  * Email: hi@victor42.work
- * Description: RSS新闻AI过滤系统，从RSS源获取新闻，通过AI进行分类和总结（分类用Groq，总结用Gemini），
+ * Description: RSS新闻AI过滤系统，从RSS源获取新闻，通过AI进行分类和总结，
  * 并保存到Google Drive的指定目录的自动化系统。
  */
 
@@ -561,7 +561,7 @@ const NewsUtils = {
           throw new Error('UtilsAI对象不可用，请确保已部署utils_ai.js文件');
         }
 
-        const rawResponse = UtilsAI.askGroq(prompt, 'qwen/qwen3-32b');
+        const rawResponse = UtilsAI.askGroq(prompt, 'classification-model');
 
         // 清理思考标签，提取最终结果
         const response = this.cleanThinkingTags(rawResponse);
@@ -612,7 +612,7 @@ const NewsUtils = {
           throw new Error('UtilsAI对象不可用，请确保已部署utils_ai.js文件');
         }
 
-        const rawResponse = UtilsAI.askGemini(prompt, 'gemini-flash-lite-latest');
+        const rawResponse = UtilsAI.askGemini(prompt, 'summarization-model');
 
         // 清理思考标签，提取最终结果
         const response = this.cleanThinkingTags(rawResponse);
