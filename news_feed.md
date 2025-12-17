@@ -14,7 +14,7 @@
 - **批量处理**：支持多个新闻条目的并行处理，可独立配置每个源的处理数量
 
 ### AI智能分类与总结
-- **双AI服务架构**：分类使用Groq API (qwen3-32b)，总结使用DeepSeek API (deepseek-chat)
+- **双AI服务架构**：分类使用Groq API (qwen/qwen3-32b)，总结使用Gemini API (gemini-flash-lite-latest)
 - **多类别识别**：识别政治、财经、军事、科技、社会、娱乐、体育、天气、其他等9类新闻
 - **精确过滤规则**：
   - 自动排除体育、军事、娱乐类新闻
@@ -79,7 +79,7 @@ const RSS_FEEDS = [
     name: '中新网',
     type: 'rss',
     processGroups: [1, 3],  // 对应 processNewsFeedGroup1() 和 processNewsFeedGroup3() 函数
-    maxEntriesPerFeed: 20,  // 该源最大处理条目数，如果未设置则使用全局配置
+    maxEntriesPerFeed: 20,  // 该源目标新新闻数量（真正通过去重过滤的新闻数），如果未设置则使用全局配置
     detailPageConfig: {
         enabled: true,  // 启用详情页抓取
         selectors: [    // 内容选择器（按优先级尝试）
@@ -97,7 +97,7 @@ const RSS_FEEDS = [
     name: 'cnbeta',
     type: 'rss',
     processGroups: [2, 4],  // 对应 processNewsFeedGroup2() 和 processNewsFeedGroup4() 函数
-    maxEntriesPerFeed: 20,  // 该源最大处理条目数，如果未设置则使用全局配置
+    maxEntriesPerFeed: 20,  // 该源目标新新闻数量（真正通过去重过滤的新闻数），如果未设置则使用全局配置
     detailPageConfig: {
         enabled: true,  // 启用详情页抓取
         selectors: [    // 内容选择器（按优先级尝试）
@@ -124,7 +124,7 @@ const STORAGE_CONFIG = {
 ### 性能配置
 ```javascript
 const PERFORMANCE_CONFIG = {
-  maxEntriesPerFeed: 20,  // 每个RSS源最大处理条目数（避免超时）
+  maxEntriesPerFeed: 20,  // 每个RSS源目标新新闻数量（真正通过去重过滤的新闻数）
   requestTimeout: 30000,     // 网络请求超时（毫秒）
   aiRequestTimeout: 60000    // AI请求超时（毫秒）
 };
@@ -141,7 +141,7 @@ const CONTENT_CONFIG = {
 ```
 
 ### AI分类提示词
-AI分类使用**Groq (llama3-70b-8192)模型**，通过if...else逻辑结构实现精确的分类判断：
+AI分类使用**Groq (qwen/qwen3-32b)模型**，通过if...else逻辑结构实现精确的分类判断：
 
 ```javascript
 IF 分类是 体育新闻 OR 军事新闻 OR 娱乐新闻：
@@ -156,7 +156,7 @@ ELSE：
 最终输出格式：`保存标记,分类`（如：1,政治新闻 或 0,体育新闻）
 
 ### AI总结提示词
-AI总结使用**DeepSeek (deepseek-chat)模型**，自动提取核心信息并生成简洁版本：
+AI总结使用**Gemini (gemini-flash-lite-latest)模型**，自动提取核心信息并生成简洁版本：
 
 ```javascript
 const AI_SUMMARIZATION_PROMPT = `请将以下新闻内容总结为不超过400字的简洁版本。要求：
@@ -230,7 +230,7 @@ AI总结：
 2. **权限要求**：`https://www.googleapis.com/auth/drive` + `https://www.googleapis.com/auth/script.external_request`
 3. **API密钥配置**：在Google Apps Script编辑器中，通过"项目设置" → "脚本属性"配置以下密钥：
    - `GROQ_API_KEY`：Groq AI服务密钥（用于新闻分类）
-   - `DEEPSEEK_API_KEY`：DeepSeek AI服务密钥（用于新闻总结）
+   - `GEMINI_API_KEY`：Gemini AI服务密钥（用于新闻总结）
 4. **触发器设置**：通过Google Apps Script编辑器图形界面配置每日定时执行
 
 ## 🚀 使用方法
@@ -249,7 +249,7 @@ AI总结：
 根据需要修改`news_feed.js`开头的`RSS_FEEDS`配置：
 - 添加新的RSS源URL
 - 配置`processGroups`指定在哪些入口函数中运行（数组格式，如[1, 3]）
-- 配置`maxEntriesPerFeed`控制该源最大处理条目数
+- 配置`maxEntriesPerFeed`控制该源目标新新闻数量（真正通过去重过滤的新闻数）
 - 配置详情页选择器（如果需要抓取详情页）
 - 调整性能参数
 
@@ -273,7 +273,7 @@ AI总结：
 // 例如：每天上午8:15执行，处理组4的RSS源
 
 // 这样可以：
-// 1. 分散AI API调用（分类用Groq，总结用DeepSeek），避免单点速率限制
+// 1. 分散AI API调用（分类用Groq，总结用Gemini），避免单点速率限制
 // 2. 确保在6分钟时限内完成
 // 3. 提高系统稳定性
 // 4. 真正实现"处理N条全新新闻"，通过去重机制避免重复处理
@@ -300,9 +300,9 @@ processNewsFeedGroup4();  // 只处理组4
 
 ### 避免执行超时
 - **分组处理**：系统提供主函数 processNewsFeedsByGroup() 和多个入口函数 processNewsFeedGroupN()，每个入口函数处理部分RSS源，避免单次执行时间过长
-- **条目限制**：每个RSS源默认最多处理20个新闻条目（可独立配置）
+- **条目限制**：每个RSS源默认目标处理20个新新闻（真正通过去重过滤的新闻数，可独立配置）
 - **超时设置**：网络请求30秒超时，AI请求60秒超时
-- **错峰执行**：通过配置不同的触发时间，分散AI API调用（分类用Groq，总结用DeepSeek）
+- **错峰执行**：通过配置不同的触发时间，分散AI API调用（分类用Groq，总结用Gemini）
 - **错误跳过**：所有错误类型均跳过当前条目，继续执行后续流程
 - **去重机制**：在获取阶段检查已有文件，只处理真正全新的新闻，节省AI API调用
 
@@ -351,7 +351,7 @@ processNewsFeedGroup4();  // 只处理组4
 ### 故障排查
 | 问题现象 | 可能原因 | 解决方案 |
 |----------|---------|----------|
-| **脚本执行超时** | 处理新闻条目过多或分组不均衡 | 减少`maxEntriesPerFeed`配置值，调整`processGroups`分配 |
+| **脚本执行超时** | 处理新闻条目过多或分组不均衡 | 减少`maxEntriesPerFeed`配置值（目标新新闻数），调整`processGroups`分配 |
 | **RSS源未被处理** | `processGroups`配置错误或触发器未配置 | 检查RSS源的`processGroups`数组值，确认触发器配置正确 |
 | **AI服务异常** | 网络问题或服务不可用 | 检查网络连接，确认服务状态 |
 | **文件保存失败** | Google Drive权限不足 | 检查脚本的Drive API权限配置 |
@@ -365,7 +365,7 @@ processNewsFeedGroup4();  // 只处理组4
 1. 在`RSS_FEEDS`数组中添加新的配置对象
 2. 配置`url`、`name`、`type`字段
 3. 配置`processGroups`指定所属的入口函数（数组格式，如[1, 3]）
-4. 配置`maxEntriesPerFeed`（可选）
+4. 配置`maxEntriesPerFeed`（可选，目标新新闻数量）
 5. 如有需要，配置`detailPageConfig`选择器
 6. 测试新源的获取和解析功能
 7. 确保触发器配置正确，包含新的RSS源所在的所有组（1-4）
@@ -413,6 +413,6 @@ processNewsFeedGroup4();  // 只处理组4
 
 ---
 
-**最后更新**：2025-12-16
-**状态**：已实施完成，生产环境可用（双AI服务架构：分类用Groq，总结用DeepSeek，支持4组触发器和去重机制）
+**最后更新**：2025-12-17
+**状态**：已实施完成，生产环境可用（双AI服务架构：分类用Groq (qwen3-32b)，总结用Gemini (gemini-flash-lite-latest)，支持4组触发器和去重机制）
 **维护者**：Victor Cheng (hi@victor42.work)
