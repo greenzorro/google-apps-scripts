@@ -515,14 +515,14 @@ const UtilsGoogleDrive = {
           thresholdDate = Utils.getDateDaysAgo(value);
           break;
         case 'h': // 小时
-          // Utils 没有 getDateHoursAgo，需要转换为分钟（60分钟=1小时）
+          // 使用现有工具函数：将小时转换为分钟（60分钟=1小时）
           thresholdDate = Utils.getDateMinutesAgo(value * 60);
           break;
         case 'm': // 分钟
           thresholdDate = Utils.getDateMinutesAgo(value);
           break;
         case 's': // 秒
-          // Utils 没有 getDateSecondsAgo，需要转换为分钟（60秒=1分钟）
+          // 使用现有工具函数：将秒转换为分钟（60秒=1分钟）
           thresholdDate = Utils.getDateMinutesAgo(Math.ceil(value / 60));
           break;
         default:

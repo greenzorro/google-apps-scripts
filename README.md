@@ -132,7 +132,7 @@ gdriveCleanAiStudio();           // Drive清理
 
 
 #### 设计优势
-- **无冲突**：采用多个命名空间对象（Utils、UtilsGoogle、UtilsAI、UtilsNetwork），完全避免命名冲突
+- **无冲突**：采用多个命名空间对象（Utils、UtilsGoogleDrive、UtilsGoogleSheets、UtilsAI、UtilsNetwork），完全避免命名冲突
 - **高可读性**：`Utils.cleanHtmlContent()`等函数让代码自解释
 - **智能提示友好**：编辑器支持`Utils.`、`UtilsGoogleDrive.`、`UtilsGoogleSheets.`、`UtilsAI.`、`UtilsNetwork.`后的自动补全
 - **模块化组织**：函数按功能域分类，便于维护和扩展

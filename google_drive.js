@@ -91,5 +91,5 @@ function gdriveCleanNewsFeed() {
   };
 
   Utils.logAction("新闻Feed文件清理完成", summary);
-  return totalOldFilesCount > 0;
+  return summary;
 }

@@ -561,7 +561,7 @@ const NewsUtils = {
           throw new Error('UtilsAI对象不可用，请确保已部署utils_ai.js文件');
         }
 
-        const rawResponse = UtilsAI.askGroq(prompt, 'classification-model');
+        const rawResponse = UtilsAI.askGroq(prompt, 'qwen/qwen3-32b');
 
         // 清理思考标签，提取最终结果
         const response = this.cleanThinkingTags(rawResponse);
@@ -612,7 +612,7 @@ const NewsUtils = {
           throw new Error('UtilsAI对象不可用，请确保已部署utils_ai.js文件');
         }
 
-        const rawResponse = UtilsAI.askGemini(prompt, 'summarization-model');
+        const rawResponse = UtilsAI.askGemini(prompt, 'gemini-flash-lite-latest');
 
         // 清理思考标签，提取最终结果
         const response = this.cleanThinkingTags(rawResponse);
