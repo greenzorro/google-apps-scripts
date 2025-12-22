@@ -85,7 +85,23 @@ routine/google_apps_scripts/
 4. 配置必要权限
 5. 设置触发器（定时或事件驱动）
 
-### 3.2 脚本运行
+### 3.2 API密钥配置
+使用AI服务功能前，需要在脚本属性中配置相应的API密钥：
+
+1. 在Google Apps Script编辑器中，点击左侧齿轮图标（项目设置）
+2. 滚动到"脚本属性"部分
+3. 添加以下属性（根据使用的AI服务选择）：
+   - `GEMINI_API_KEY`: 您的Gemini API密钥
+   - `DEEPSEEK_API_KEY`: 您的Deepseek API密钥
+   - `GROQ_API_KEY`: 您的Groq API密钥
+   - `CEREBRAS_API_KEY`: 您的Cerebras API密钥
+
+**注意：**
+- API密钥存储在脚本属性中，确保安全性
+- 未配置的API密钥会导致相应AI服务调用失败
+- 可以只配置需要使用的AI服务密钥
+
+### 3.3 脚本运行
 ```javascript
 // 在Google Apps Script编辑器中运行
 monitorCalendarChanges();     // 日历监控
@@ -93,7 +109,7 @@ gmailAutoArchive();          // 邮件归档
 gdriveCleanAiStudio();           // Drive清理
 ```
 
-### 3.3 依赖要求
+### 3.4 依赖要求
 所有脚本都依赖 `utils.js` 核心工具函数库，部分脚本还需依赖 `utils_google_drive.js`、`utils_google_sheets.js` 或 `utils_ai.js`，请根据脚本功能确保部署相应文件。
 
 ## 4. 工具清单
@@ -183,6 +199,7 @@ gdriveCleanAiStudio();           // Drive清理
 - `UtilsAI.askGemini(prompt, model)` - 调用AI服务API获取AI回复
 - `UtilsAI.askDeepseek(prompt, model)` - 调用AI服务API获取AI回复
 - `UtilsAI.askGroq(prompt, model)` - 调用AI服务API获取AI回复
+- `UtilsAI.askCerebras(prompt, model)` - 调用AI服务API获取AI回复
 
 ### 4.5 `utils_network.js` - 网络请求工具库
 **功能：** 提供通用HTTP请求功能，支持重定向、超时、用户代理配置等，采用命名空间模式封装在UtilsNetwork对象中
@@ -357,7 +374,8 @@ testAllAIServices();
 // 使用工具函数
 const geminiResponse = UtilsAI.askGemini('你好，请用一句话介绍你自己。', 'model-name-1');
 const deepseekResponse = UtilsAI.askDeepseek('你好，请用一句话介绍你自己。', 'model-name-2');
-const groqResponse = UtilsAI.askGroq('你好，请用一句话介绍你自己。', 'model-name-3');
+const groqResponse = UtilsAI.askGroq('你好，请用一句话介绍你自己。', 'qwen/qwen3-32b');
+const cerebrasResponse = UtilsAI.askCerebras('你好，请用一句话介绍你自己。', 'qwen-3-32b');
 ```
 
 ## 5. 使用场景
