@@ -4,7 +4,7 @@
  * Created: 2025-12-09
  * Author: Victor Cheng
  * Email: hi@victor42.work
- * Description: AI服务工具函数库，提供多模型AI服务调用功能（Gemini、Deepseek、Groq）。
+ * Description: AI服务工具函数库，提供多模型AI服务调用功能（Gemini、Deepseek、Groq、Cerebras）。
  */
 
 /**
@@ -22,12 +22,19 @@ const UtilsAI = {
    * 向Google Gemini API发送请求并获取AI回复
    * @param {string} prompt - 要发送的提示内容
    * @param {string} [model='gemini-flash-lite-latest'] - 使用的模型名称
+   * @param {number} [delay=0] - 请求间隔（秒），默认为0不设间隔
    * @returns {string} AI的回复内容
    */
-  askGemini: function(prompt, model) {
+  askGemini: function(prompt, model, delay) {
     const scriptProperties = PropertiesService.getScriptProperties();
     const apiKey = scriptProperties.getProperty('GEMINI_API_KEY');
     model = model || 'gemini-flash-lite-latest';
+    delay = delay || 0;
+
+    // 如果设置了延迟，等待指定秒数
+    if (delay > 0) {
+      Utilities.sleep(delay * 1000);
+    }
 
     const url = `https://generativelanguage.googleapis.com/v1beta/models/${model}:generateContent?key=${apiKey}`;
 
@@ -75,12 +82,19 @@ const UtilsAI = {
    * 向Deepseek API发送请求并获取AI回复
    * @param {string} prompt - 要发送的提示内容
    * @param {string} [model='deepseek-chat'] - 使用的模型名称
+   * @param {number} [delay=0] - 请求间隔（秒），默认为0不设间隔
    * @returns {string} AI的回复内容
    */
-  askDeepseek: function(prompt, model) {
+  askDeepseek: function(prompt, model, delay) {
     const scriptProperties = PropertiesService.getScriptProperties();
     const apiKey = scriptProperties.getProperty('DEEPSEEK_API_KEY');
     model = model || 'deepseek-chat';
+    delay = delay || 0;
+
+    // 如果设置了延迟，等待指定秒数
+    if (delay > 0) {
+      Utilities.sleep(delay * 1000);
+    }
 
     const url = 'https://api.deepseek.com/chat/completions';
 
@@ -132,13 +146,20 @@ const UtilsAI = {
   /**
    * 向Groq API发送请求并获取AI回复
    * @param {string} prompt - 要发送的提示内容
-   * @param {string} [model='llama3-70b-8192'] - 使用的模型名称
+   * @param {string} [model='qwen/qwen3-32b'] - 使用的模型名称
+   * @param {number} [delay=0] - 请求间隔（秒），默认为0不设间隔
    * @returns {string} AI的回复内容
    */
-  askGroq: function(prompt, model) {
+  askGroq: function(prompt, model, delay) {
     const scriptProperties = PropertiesService.getScriptProperties();
     const apiKey = scriptProperties.getProperty('GROQ_API_KEY');
-    model = model || 'llama3-70b-8192';
+    model = model || 'qwen/qwen3-32b';
+    delay = delay || 0;
+
+    // 如果设置了延迟，等待指定秒数
+    if (delay > 0) {
+      Utilities.sleep(delay * 1000);
+    }
 
     const url = 'https://api.groq.com/openai/v1/chat/completions';
 
@@ -159,6 +180,74 @@ const UtilsAI = {
       'contentType': 'application/json',
       'headers': {
         'Authorization': 'Bearer ' + apiKey
+      },
+      'payload': JSON.stringify(requestData),
+      'muteHttpExceptions': true
+    };
+
+    try {
+      const response = UrlFetchApp.fetch(url, options);
+      const responseData = JSON.parse(response.getContentText());
+
+      if (response.getResponseCode() === 200) {
+        const reply = responseData.choices &&
+                     responseData.choices[0] &&
+                     responseData.choices[0].message &&
+                     responseData.choices[0].message.content;
+
+        if (reply) {
+          return reply;
+        } else {
+          throw new Error('无法从API响应中提取回复内容');
+        }
+      } else {
+        throw new Error(`API请求失败，状态码: ${response.getResponseCode()}, 响应: ${response.getContentText()}`);
+      }
+    } catch (error) {
+      throw new Error(`请求失败: ${error.message}`);
+    }
+  },
+
+  /**
+   * 向Cerebras API发送请求并获取AI回复
+   * @param {string} prompt - 要发送的提示内容
+   * @param {string} [model='qwen-3-32b'] - 使用的模型名称
+   * @param {number} [delay=0] - 请求间隔（秒），默认为0不设间隔
+   * @returns {string} AI的回复内容
+   */
+  askCerebras: function(prompt, model, delay) {
+    const scriptProperties = PropertiesService.getScriptProperties();
+    const apiKey = scriptProperties.getProperty('CEREBRAS_API_KEY');
+    model = model || 'qwen-3-32b';
+    delay = delay || 0;
+
+    // 如果设置了延迟，等待指定秒数
+    if (delay > 0) {
+      Utilities.sleep(delay * 1000);
+    }
+
+    const url = 'https://api.cerebras.ai/v1/chat/completions';
+
+    const requestData = {
+      model: model,
+      messages: [
+        {
+          role: 'user',
+          content: prompt
+        }
+      ],
+      max_tokens: -1,
+      temperature: 0,
+      top_p: 1,
+      stream: false
+    };
+
+    const options = {
+      'method': 'post',
+      'contentType': 'application/json',
+      'headers': {
+        'Authorization': 'Bearer ' + apiKey,
+        'User-Agent': 'GoogleAppsScript/CerebrasSDK'
       },
       'payload': JSON.stringify(requestData),
       'muteHttpExceptions': true
