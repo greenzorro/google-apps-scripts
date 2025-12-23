@@ -636,6 +636,7 @@ const NewsUtils = {
       return rawResponse
         .replace(/<think>[\s\S]*?<\/think>/gi, '')
         .replace(/<thinking>[\s\S]*?<\/thinking>/gi, '')
+        .replace(/<思考>[\s\S]*?<\/思考>/gi, '')
         .trim();
     }
   },

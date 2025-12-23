@@ -2,7 +2,7 @@
 
 ## 1. 目的
 
-本文档旨在详细记录 `routine/google-apps-scripts` 目录下的所有Google Apps Script工具，为本项目的未来开发提供便利，核心目的是**复用现有能力，避免重复造轮子**。
+本文档旨在详细记录 `projects/google-apps-scripts` 目录下的所有Google Apps Script工具，为本项目的未来开发提供便利，核心目的是**复用现有能力，避免重复造轮子**。
 
 **重要提示：** `google-apps-scripts` 目录工具变更后，请及时更新此备忘录，确保文档的准确性和时效性。
 
@@ -25,7 +25,7 @@
 ### 文件组织
 
 ```
-routine/google_apps_scripts/
+projects/google-apps-scripts/
 ├── utils.js              # 核心工具函数库 (必需依赖)
 ├── utils_google_drive.js # Google Drive操作工具库
 ├── utils_google_sheets.js# Google Sheets操作工具库
