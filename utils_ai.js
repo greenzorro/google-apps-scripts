@@ -43,7 +43,14 @@ const UtilsAI = {
         parts: [{
           text: prompt
         }]
-      }]
+      }],
+      generationConfig: {
+        temperature: 0.7,
+        maxOutputTokens: 8192,
+        topP: 0.95,
+        topK: 20,
+        candidateCount: 1
+      }
     };
 
     const options = {
@@ -236,9 +243,9 @@ const UtilsAI = {
           content: prompt
         }
       ],
-      max_tokens: -1,
-      temperature: 0,
-      top_p: 1,
+      max_tokens: 8192,
+      temperature: 0.7,
+      top_p: 0.95,
       stream: false
     };
 
