@@ -189,7 +189,7 @@ gdriveCleanAiStudio();           // Drive清理
 - `UtilsGoogleSheets.columnToNumber(column)` - 将列字母转换为列号
 - `UtilsGoogleSheets.numberToColumn(columnNumber)` - 将列号转换为列字母
 - `UtilsGoogleSheets.updateSheetWithAutoRange(fileName, sheetName, targetRangeStart, sourceData)` - 智能更新数据，自动计算并匹配范围
-- `UtilsGoogleSheets.updateSheetByContentMatch(targetFileName, targetSheetName, searchColumn, sourceFile, searchRange, dataRange, updateRangeStart)` - 基于内容匹配的智能数据更新
+- `UtilsGoogleSheets.updateSheetByContentMatchOrAppend(targetFileName, targetSheetName, searchColumn, sourceFile, dataRange, headerRows, options)` - 基于内容匹配的批量更新：遍历所有行，找到的更新，未匹配的可选追加（options.appendIfNotFound 控制是否追加，默认true）
 
 ### 4.4 `utils_ai.js` - AI服务工具库
 **功能：** 提供多模型AI服务调用功能（支持多种AI服务），采用命名空间模式封装在UtilsAI对象中
@@ -353,7 +353,10 @@ mpWechatDataUpdate();
 
 // 使用新的智能工具函数
 const success1 = UtilsGoogleSheets.updateSheetWithAutoRange("目标表格", "工作表名", "A1", data);
-const success2 = UtilsGoogleSheets.updateSheetByContentMatch("目标表格", "工作表名", "A", sourceFile, "A2:A2", "A2:Z1000", "A");
+// 批量更新：匹配的更新，未匹配的追加
+const success2 = UtilsGoogleSheets.updateSheetByContentMatchOrAppend("目标表格", "工作表名", "A", sourceFile, "A1:I1000", 1);
+// 批量更新：只更新已存在的，不追加新内容
+const success3 = UtilsGoogleSheets.updateSheetByContentMatchOrAppend("目标表格", "工作表名", "A", sourceFile, "A1:I1000", 1, { appendIfNotFound: false });
 ```
 
 ### 4.10 `demo_models.js` - AI模型调用演示脚本
