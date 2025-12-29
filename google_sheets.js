@@ -78,19 +78,19 @@ function mpWechatDataUpdate() {
       Logger.log(`警告：找不到traffic文件 ${trafficFileName}`);
     }
     
-    // 6. 更新content数据
+    // 6. 更新content数据（匹配的更新，未匹配的追加）
     const contentFile = UtilsGoogleDrive.findFileWithExtensions(mpWechatFolder, contentFileName);
     if (contentFile) {
-      // 使用内容匹配更新函数
-      const success = UtilsGoogleSheets.updateSheetByContentMatch(
+      // 使用批量更新函数：匹配的更新，未匹配的追加
+      const success = UtilsGoogleSheets.updateSheetByContentMatchOrAppend(
         TARGET_SPREADSHEET_NAME, "📌 content", "A",
-        contentFile, "A2:A2", "A2:Z1000", "A"
+        contentFile, "A1:I1000", 1
       );
       if (!success) {
         Logger.log("content数据更新失败");
         return false;
       }
-      Logger.log("content数据更新完成（可能为空数据已跳过）");
+      Logger.log("content数据更新完成");
     } else {
       Logger.log(`信息：找不到content文件 ${contentFileName}，跳过更新`);
     }

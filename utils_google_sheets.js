@@ -370,56 +370,106 @@ const UtilsGoogleSheets = {
   },
 
   /**
-   * 基于内容匹配的智能数据更新
+   * 基于内容匹配的批量更新：匹配的更新，未匹配的可选追加到表尾
    * @param {string} targetFileName - 目标文件名
    * @param {string} targetSheetName - 目标工作表名称
-   * @param {string} searchColumn - 目标表中查找的列字母
+   * @param {string} searchColumn - 搜索列字母（如"A"，表示用第一列作为匹配键）
    * @param {File} sourceFile - 源文件对象
-   * @param {string} searchRange - 源表中查找的范围（用于获取匹配内容）
-   * @param {string} dataRange - 源表中数据范围（用于获取更新数据）
-   * @param {string} updateRangeStart - 目标表中更新起始单元格（如"A"）
-   * @return {boolean} 是否成功更新
+   * @param {string} dataRange - 源数据范围（如"A1:I1000"，包含表头）
+   * @param {number} headerRows - 源数据中的表头行数（默认为1）
+   * @param {Object} options - 可选配置
+   * @param {boolean} options.appendIfNotFound - 找不到时是否追加，默认为true
+   * @return {boolean} 是否成功
    */
-  updateSheetByContentMatch: function(targetFileName, targetSheetName, searchColumn,
-                                     sourceFile, searchRange, dataRange, updateRangeStart) {
+  updateSheetByContentMatchOrAppend: function(targetFileName, targetSheetName,
+                                              searchColumn, sourceFile, dataRange, headerRows, options) {
     try {
-      // 1. 从源文件获取查找内容
-      const searchData = this.readSheetData(sourceFile, searchRange);
-      if (!searchData || searchData.length === 0 || !searchData[0][0]) {
-        Logger.log(`信息：源文件查找内容为空，跳过更新`);
-        return true; // 返回成功，表示正常跳过
+      if (headerRows === undefined) headerRows = 1;
+      const appendIfNotFound = (options && options.appendIfNotFound !== undefined) ? options.appendIfNotFound : true;
+
+      // 1. 读取源数据所有行
+      const sourceData = this.readSheetData(sourceFile, dataRange);
+      if (!sourceData || sourceData.length <= headerRows) {
+        Logger.log(`信息：源数据为空或只有表头，跳过更新`);
+        return true;
       }
 
-      const searchText = searchData[0][0];
-
-      // 2. 在目标表中查找匹配行
-      const foundPosition = this.findTextInColumn(targetFileName, targetSheetName, searchColumn, searchText);
-      if (!foundPosition) {
-        Logger.log(`信息：在目标表中未找到内容: "${searchText}"，跳过更新`);
-        return true; // 返回成功，表示正常跳过
+      // 2. 获取目标 sheet 对象（用于追加操作）
+      const files = DriveApp.getFilesByName(targetFileName);
+      if (!files.hasNext()) {
+        Utils.logError(new Error(`找不到文件 "${targetFileName}"`), "批量更新");
+        return false;
+      }
+      const file = files.next();
+      const spreadsheet = SpreadsheetApp.openById(file.getId());
+      const sheet = spreadsheet.getSheetByName(targetSheetName);
+      if (!sheet) {
+        Utils.logError(new Error(`在工作表 "${targetFileName}" 中找不到工作表 "${targetSheetName}"`), "批量更新");
+        return false;
       }
 
-      const targetRow = foundPosition.row;
+      // 3. 遍历源数据每行（跳过表头）
+      let updatedCount = 0;
+      let appendedCount = 0;
+      let skippedCount = 0;
+      const searchColumnIndex = this.columnToNumber(searchColumn) - 1; // 转为0-based
 
-      // 3. 从源文件获取更新数据
-      const updateData = this.readSheetData(sourceFile, dataRange);
-      if (!updateData || updateData.length === 0) {
-        Logger.log(`信息：源文件更新数据为空，跳过更新`);
-        return true; // 返回成功，表示正常跳过
+      // 获取目标表搜索列的所有数据（一次性读取，避免重复打开文件）
+      const lastRow = sheet.getLastRow();
+      const targetSearchColumn = this.columnToNumber(searchColumn);
+      let targetSearchValues = [];
+      if (lastRow > 0) {
+        const searchRange = sheet.getRange(`${searchColumn}1:${searchColumn}${lastRow}`);
+        targetSearchValues = searchRange.getValues();
       }
 
-      // 4. 智能更新数据
-      const targetRangeStart = `${updateRangeStart}${targetRow}`;
-      const success = this.updateSheetWithAutoRange(targetFileName, targetSheetName, targetRangeStart, updateData);
+      for (let i = headerRows; i < sourceData.length; i++) {
+        const rowData = sourceData[i];
+        const searchText = rowData[searchColumnIndex];
 
-      if (success) {
-        Logger.log(`内容匹配更新成功：目标行 ${targetRow}，数据 ${updateData.length}行`);
+        if (!searchText) {
+          Logger.log(`警告：第 ${i + 1} 行搜索列为空，跳过`);
+          skippedCount++;
+          continue;
+        }
+
+        // 在已读取的列数据中查找（避免重复打开文件）
+        let foundRow = null;
+        for (let j = 0; j < targetSearchValues.length; j++) {
+          if (targetSearchValues[j][0] === searchText) {
+            foundRow = j + 1; // 转为1-based行号
+            break;
+          }
+        }
+
+        if (foundRow) {
+          // 已存在：直接更新该行（复用已打开的sheet对象）
+          const cols = rowData.length;
+          const endColumn = this.numberToColumn(targetSearchColumn + cols - 1);
+          const targetRange = `${searchColumn}${foundRow}:${endColumn}${foundRow}`;
+          sheet.getRange(targetRange).setValues([rowData]);
+          updatedCount++;
+        } else {
+          // 不存在：根据选项决定追加或跳过
+          if (appendIfNotFound) {
+            sheet.appendRow(rowData);
+            appendedCount++;
+            Utils.logAction("追加新行", { title: searchText, extra: `到 ${targetSheetName}` });
+          } else {
+            skippedCount++;
+            Logger.log(`跳过未匹配内容: "${searchText}"`);
+          }
+        }
       }
-      return success;
+
+      const actionText = appendIfNotFound ? "追加" : "跳过";
+      const totalCount = appendIfNotFound ? appendedCount : skippedCount;
+      Utils.logEnd("批量更新", { count: totalCount, message: `更新 ${updatedCount} 行，${actionText} ${totalCount} 行` });
+      return true;
 
     } catch (error) {
-      Logger.log(`内容匹配更新失败：${error.message}`);
-      return false; // 只有真正的异常才返回失败
+      Utils.logError(error, "批量更新");
+      return false;
     }
   }
 };
