@@ -566,7 +566,7 @@ const NewsUtils = {
           throw new Error('UtilsAI对象不可用，请确保已部署utils_ai.js文件');
         }
 
-        const rawResponse = UtilsAI.askCerebras(prompt, 'qwen-3-235b-a22b-instruct-2507', 1);
+        const rawResponse = UtilsAI.askCerebras(prompt, 'qwen-3-32b', 1);
 
         // 清理思考标签，提取最终结果
         const response = this.cleanThinkingTags(rawResponse);
