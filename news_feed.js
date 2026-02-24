@@ -562,11 +562,11 @@ const NewsUtils = {
 
       try {
         // 验证AI工具依赖
-        if (typeof UtilsAI === 'undefined' || typeof UtilsAI.askCerebras !== 'function') {
+        if (typeof UtilsAI === 'undefined' || typeof UtilsAI.askGroq !== 'function') {
           throw new Error('UtilsAI对象不可用，请确保已部署utils_ai.js文件');
         }
 
-        const rawResponse = UtilsAI.askCerebras(prompt, 'qwen-3-32b', 1);
+        const rawResponse = UtilsAI.askGroq(prompt, 'qwen/qwen3-32b');
 
         // 清理思考标签，提取最终结果
         const response = this.cleanThinkingTags(rawResponse);
