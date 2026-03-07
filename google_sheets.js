@@ -68,7 +68,7 @@ function mpWechatDataUpdate() {
       // 读取全部数据，使用智能更新函数
       const trafficData = UtilsGoogleSheets.readSheetData(trafficFile, "A1:Z1000");
       if (trafficData) {
-        const success = UtilsGoogleSheets.updateSheetWithAutoRange(TARGET_SPREADSHEET_NAME, "📌 traffic", "A1", trafficData);
+        const success = UtilsGoogleSheets.updateSheetWithAutoRange(TARGET_SPREADSHEET_NAME, "traffic", "A1", trafficData);
         if (!success) {
           Logger.log("traffic数据更新失败");
           return false;
@@ -82,8 +82,8 @@ function mpWechatDataUpdate() {
     const contentFile = UtilsGoogleDrive.findFileWithExtensions(mpWechatFolder, contentFileName);
     if (contentFile) {
       // 使用批量更新函数：匹配的更新，未匹配的追加
-      const success = UtilsGoogleSheets.updateSheetByContentMatchOrAppend(
-        TARGET_SPREADSHEET_NAME, "📌 content", "A",
+        const success = UtilsGoogleSheets.updateSheetByContentMatchOrAppend(
+        TARGET_SPREADSHEET_NAME, "content", "A",
         contentFile, "A1:I1000", 1
       );
       if (!success) {
@@ -101,7 +101,7 @@ function mpWechatDataUpdate() {
       // 读取全部数据，使用智能更新函数
       const userData = UtilsGoogleSheets.readSheetData(userFile, "A1:Z1000");
       if (userData) {
-        const success = UtilsGoogleSheets.updateSheetWithAutoRange(TARGET_SPREADSHEET_NAME, "📌 user", "A1", userData);
+        const success = UtilsGoogleSheets.updateSheetWithAutoRange(TARGET_SPREADSHEET_NAME, "user", "A1", userData);
         if (!success) {
           Logger.log("user数据更新失败");
           return false;
