@@ -617,7 +617,7 @@ const NewsUtils = {
           throw new Error('UtilsAI对象不可用，请确保已部署utils_ai.js文件');
         }
 
-        const rawResponse = UtilsAI.askGemini(prompt, 'gemini-flash-lite-latest');
+        const rawResponse = UtilsAI.askGemini(prompt, 'gemini-flash-latest');
 
         // 清理思考标签，提取最终结果
         const response = this.cleanThinkingTags(rawResponse);
