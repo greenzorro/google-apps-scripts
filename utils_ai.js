@@ -88,14 +88,14 @@ const UtilsAI = {
   /**
    * 向Deepseek API发送请求并获取AI回复
    * @param {string} prompt - 要发送的提示内容
-   * @param {string} [model='deepseek-chat'] - 使用的模型名称
+   * @param {string} [model='deepseek-v4-flash'] - 使用的模型名称
    * @param {number} [delay=0] - 请求间隔（秒），默认为0不设间隔
    * @returns {string} AI的回复内容
    */
   askDeepseek: function(prompt, model, delay) {
     const scriptProperties = PropertiesService.getScriptProperties();
     const apiKey = scriptProperties.getProperty('DEEPSEEK_API_KEY');
-    model = model || 'deepseek-chat';
+    model = model || 'deepseek-v4-flash';
     delay = delay || 0;
 
     // 如果设置了延迟，等待指定秒数

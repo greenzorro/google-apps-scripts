@@ -20,7 +20,7 @@ function testAllAIServices() {
   Logger.log('Gemini AI回复: ' + geminiResponse);
 
   Logger.log('--- 测试 Deepseek API ---');
-  const deepseekResponse = UtilsAI.askDeepseek('你好，请用一句话介绍你自己。', 'deepseek-chat');
+  const deepseekResponse = UtilsAI.askDeepseek('你好，请用一句话介绍你自己。', 'deepseek-v4-flash');
   Logger.log('Deepseek AI回复: ' + deepseekResponse);
 
   Logger.log('--- 测试 Groq API ---');
@@ -33,4 +33,3 @@ function testAllAIServices() {
 
   Utils.logEnd("AI模型测试", { count: 4, message: "已完成所有AI服务的测试调用" });
 }
-
