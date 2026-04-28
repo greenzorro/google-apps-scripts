@@ -566,7 +566,10 @@ const NewsUtils = {
           throw new Error('UtilsAI对象不可用，请确保已部署utils_ai.js文件');
         }
 
-        const rawResponse = UtilsAI.askGemini(prompt, 'gemini-flash-latest');
+        const rawResponse = UtilsAI.askGemini({
+          prompt: prompt,
+          model: 'gemini-flash-latest'
+        });
 
         // 清理思考标签，提取最终结果
         const response = this.cleanThinkingTags(rawResponse);
@@ -606,7 +609,7 @@ const NewsUtils = {
     /**
      * AI新闻内容总结函数
      * @param {string} content - 需要总结的新闻内容
-     * @return {string} 总结后的内容，如果失败则返回原内容
+     * @return {Object} 总结结果对象
      */
     summarizeContent: function(content) {
       const prompt = AI_SUMMARIZATION_PROMPT + content;
@@ -617,17 +620,28 @@ const NewsUtils = {
           throw new Error('UtilsAI对象不可用，请确保已部署utils_ai.js文件');
         }
 
-        const rawResponse = UtilsAI.askGemini(prompt, 'gemini-flash-latest-lite');
+        const rawResponse = UtilsAI.askGemini({
+          prompt: prompt,
+          model: 'gemini-flash-lite-latest',
+          temperature: 0.2,
+          maxTokens: 512
+        });
 
         // 清理思考标签，提取最终结果
         const response = this.cleanThinkingTags(rawResponse);
 
-        return response;
+        return {
+          content: response,
+          didSummarize: true
+        };
 
       } catch (error) {
         // AI总结失败：返回原内容
         Utils.logError(error, "AI内容总结失败，返回原内容");
-        return content;
+        return {
+          content: content,
+          didSummarize: false
+        };
       }
     },
 
@@ -871,16 +885,17 @@ function processNewsFeedsByGroup(groupNumber) {
               });
 
               // 调用AI总结
-              const summarizedContent = NewsUtils.AI.summarizeContent(extractedContent);
+              const summarizationResult = NewsUtils.AI.summarizeContent(extractedContent);
               // 思考标签已在summarizeContent函数中清理
-              finalContent = summarizedContent;
-
-              isAISummarized = true;
+              finalContent = summarizationResult.content;
+              isAISummarized = summarizationResult.didSummarize;
 
               // 【日志】AI总结完成
               Utils.logAction("AI总结完成", {
                 title: entry.title.substring(0, 50) + (entry.title.length > 50 ? '...' : ''),
-                extra: `原文: ${extractedContent.length}字符 → 总结: ${finalContent.length}字符`
+                extra: isAISummarized
+                  ? `原文: ${extractedContent.length}字符 → 总结: ${finalContent.length}字符`
+                  : `AI总结失败，回退原文: ${finalContent.length}字符`
               });
             } else {
               // 【日志】跳过AI总结，保存原文

@@ -196,10 +196,10 @@ gdriveCleanAiStudio();           // Drive清理
 - **设计模式：** 命名空间封装，避免全局作用域污染
 
 #### AI服务调用工具
-- `UtilsAI.askGemini(prompt, model)` - 调用AI服务API获取AI回复
-- `UtilsAI.askDeepseek(prompt, model)` - 调用AI服务API获取AI回复
-- `UtilsAI.askGroq(prompt, model)` - 调用AI服务API获取AI回复
-- `UtilsAI.askCerebras(prompt, model)` - 调用AI服务API获取AI回复
+- `UtilsAI.askGemini(options)` - 使用对象参数调用Gemini，支持 `prompt` / `messages` / `model` / `temperature` / `maxTokens` 等配置
+- `UtilsAI.askDeepseek(options)` - 使用对象参数调用DeepSeek，支持通用生成参数与 `deepseek.thinking` 等专有配置
+- `UtilsAI.askGroq(options)` - 使用对象参数调用Groq，支持通用生成参数与 `groq.reasoningEffort` 等专有配置
+- `UtilsAI.askCerebras(options)` - 使用对象参数调用Cerebras，支持通用生成参数与 `cerebras.reasoningEffort` 等专有配置
 
 ### 4.5 `utils_network.js` - 网络请求工具库
 **功能：** 提供通用HTTP请求功能，支持重定向、超时、用户代理配置等，采用命名空间模式封装在UtilsNetwork对象中
@@ -375,10 +375,26 @@ const success3 = UtilsGoogleSheets.updateSheetByContentMatchOrAppend("目标表�
 testAllAIServices();
 
 // 使用工具函数
-const geminiResponse = UtilsAI.askGemini('你好，请用一句话介绍你自己。', 'model-name-1');
-const deepseekResponse = UtilsAI.askDeepseek('你好，请用一句话介绍你自己。', 'model-name-2');
-const groqResponse = UtilsAI.askGroq('你好，请用一句话介绍你自己。', 'qwen/qwen3-32b');
-const cerebrasResponse = UtilsAI.askCerebras('你好，请用一句话介绍你自己。', 'qwen-3-32b');
+const geminiResponse = UtilsAI.askGemini({
+  prompt: '你好，请用一句话介绍你自己。',
+  model: 'gemini-flash-lite-latest',
+  maxTokens: 128
+});
+const deepseekResponse = UtilsAI.askDeepseek({
+  prompt: '你好，请用一句话介绍你自己。',
+  model: 'deepseek-v4-flash',
+  maxTokens: 128
+});
+const groqResponse = UtilsAI.askGroq({
+  prompt: '你好，请用一句话介绍你自己。',
+  model: 'qwen/qwen3-32b',
+  maxTokens: 128
+});
+const cerebrasResponse = UtilsAI.askCerebras({
+  prompt: '你好，请用一句话介绍你自己。',
+  model: 'qwen-3-235b-a22b-instruct-2507',
+  maxTokens: 128
+});
 ```
 
 ## 5. 使用场景

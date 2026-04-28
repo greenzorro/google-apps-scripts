@@ -16,19 +16,35 @@ function testAllAIServices() {
   Utils.logStart("AI模型测试");
 
   Logger.log('--- 测试 Gemini API ---');
-  const geminiResponse = UtilsAI.askGemini('你好，请用一句话介绍你自己。', 'gemini-flash-lite-latest');
+  const geminiResponse = UtilsAI.askGemini({
+    prompt: '你好，请用一句话介绍你自己。',
+    model: 'gemini-flash-lite-latest',
+    maxTokens: 128
+  });
   Logger.log('Gemini AI回复: ' + geminiResponse);
 
   Logger.log('--- 测试 Deepseek API ---');
-  const deepseekResponse = UtilsAI.askDeepseek('你好，请用一句话介绍你自己。', 'deepseek-v4-flash');
+  const deepseekResponse = UtilsAI.askDeepseek({
+    prompt: '你好，请用一句话介绍你自己。',
+    model: 'deepseek-v4-flash',
+    maxTokens: 128
+  });
   Logger.log('Deepseek AI回复: ' + deepseekResponse);
 
   Logger.log('--- 测试 Groq API ---');
-  const groqResponse = UtilsAI.askGroq('你好，请用一句话介绍你自己。', 'qwen/qwen3-32b');
+  const groqResponse = UtilsAI.askGroq({
+    prompt: '你好，请用一句话介绍你自己。',
+    model: 'qwen/qwen3-32b',
+    maxTokens: 128
+  });
   Logger.log('Groq AI回复: ' + groqResponse);
 
   Logger.log('--- 测试 Cerebras API ---');
-  const cerebrasResponse = UtilsAI.askCerebras('你好，请用一句话介绍你自己。', 'qwen-3-32b');
+  const cerebrasResponse = UtilsAI.askCerebras({
+    prompt: '你好，请用一句话介绍你自己。',
+    model: 'qwen-3-235b-a22b-instruct-2507',
+    maxTokens: 128
+  });
   Logger.log('Cerebras AI回复: ' + cerebrasResponse);
 
   Utils.logEnd("AI模型测试", { count: 4, message: "已完成所有AI服务的测试调用" });
