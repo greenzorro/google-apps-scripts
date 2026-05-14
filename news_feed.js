@@ -775,6 +775,9 @@ ${finalContent}`;
  */
 function processNewsFeedsByGroup(groupNumber) {
   // === 1. 初始化 ===
+  const scriptStartTime = new Date();
+  const getElapsedSeconds = () => Math.round((new Date().getTime() - scriptStartTime.getTime()) / 1000);
+
   Utils.logStart(`新闻源收集 - 组${groupNumber}`);
 
   // 验证关键依赖
@@ -881,7 +884,7 @@ function processNewsFeedsByGroup(groupNumber) {
               // 【日志】准备执行AI总结
               Utils.logAction("执行AI总结", {
                 title: entry.title.substring(0, 50) + (entry.title.length > 50 ? '...' : ''),
-                extra: `原文长度: ${extractedContent.length}字符，超过阈值${CONTENT_CONFIG.maxContentLength}字符`
+                extra: `原文长度: ${extractedContent.length}字符，超过阈值${CONTENT_CONFIG.maxContentLength}字符，已运行${getElapsedSeconds()}秒`
               });
 
               // 调用AI总结
@@ -894,8 +897,8 @@ function processNewsFeedsByGroup(groupNumber) {
               Utils.logAction("AI总结完成", {
                 title: entry.title.substring(0, 50) + (entry.title.length > 50 ? '...' : ''),
                 extra: isAISummarized
-                  ? `原文: ${extractedContent.length}字符 → 总结: ${finalContent.length}字符`
-                  : `AI总结失败，回退原文: ${finalContent.length}字符`
+                  ? `原文: ${extractedContent.length}字符 → 总结: ${finalContent.length}字符，已运行${getElapsedSeconds()}秒`
+                  : `AI总结失败，回退原文: ${finalContent.length}字符，已运行${getElapsedSeconds()}秒`
               });
             } else {
               // 【日志】跳过AI总结，保存原文

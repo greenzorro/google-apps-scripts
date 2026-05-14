@@ -414,7 +414,9 @@ const Utils = {
    * @param {string} scriptName - 脚本名称
    */
   logStart: function(scriptName) {
-    Logger.log("--- 开始运行 %s 脚本 ---", scriptName);
+    const message = `--- 开始运行 ${scriptName} 脚本 ---`;
+    Logger.log(message);
+    console.log(message);
   },
 
   /**
@@ -423,11 +425,14 @@ const Utils = {
    * @param {Object} summary - 执行摘要对象
    */
   logEnd: function(scriptName, summary) {
+    let message;
     if (summary && summary.count > 0) {
-      Logger.log("--- %s 脚本执行完毕。%s ---", scriptName, summary.message);
+      message = `--- ${scriptName} 脚本执行完毕。${summary.message} ---`;
     } else {
-      Logger.log("--- %s 脚本执行完毕。没有找到符合条件的项目。---", scriptName);
+      message = `--- ${scriptName} 脚本执行完毕。没有找到符合条件的项目。---`;
     }
+    Logger.log(message);
+    console.log(message);
   },
 
   /**
@@ -436,15 +441,18 @@ const Utils = {
    * @param {Object} details - 操作详情对象
    */
   logAction: function(action, details) {
+    let message;
     if (details && details.subject) {
-      Logger.log("--> 正在%s: \"%s\" %s", action, details.subject, details.extra || "");
+      message = `--> 正在${action}: "${details.subject}" ${details.extra || ""}`;
     } else if (details && details.title) {
-      Logger.log("--> 正在%s: \"%s\" %s", action, details.title, details.extra || "");
+      message = `--> 正在${action}: "${details.title}" ${details.extra || ""}`;
     } else if (details && details.name) {
-      Logger.log("--> 正在%s: \"%s\" %s", action, details.name, details.extra || "");
+      message = `--> 正在${action}: "${details.name}" ${details.extra || ""}`;
     } else {
-      Logger.log("--> 正在%s", action);
+      message = `--> 正在${action}`;
     }
+    Logger.log(message);
+    console.log(message);
   },
 
   /**
@@ -453,11 +461,9 @@ const Utils = {
    * @param {string} context - 错误上下文
    */
   logError: function(error, context) {
-    Logger.log("错误: %s。上下文: %s。错误详情: %s",
-      context || "未知操作",
-      error.message || error.toString(),
-      error.stack || "无堆栈信息"
-    );
+    const message = `错误: ${context || "未知操作"}。错误详情: ${error.message || error.toString()}。堆栈: ${error.stack || "无堆栈信息"}`;
+    Logger.log(message);
+    console.error(message);
   },
 
   /**
@@ -467,20 +473,17 @@ const Utils = {
    * @param {Object} range - 范围信息
    */
   logScanRange: function(itemType, totalCount, range) {
+    let message;
     if (range && range.start && range.end) {
-      Logger.log("正在扫描%s: 从 %s 到 %s，共找到 %d 个%s",
-        itemType,
-        range.start.toLocaleDateString(),
-        range.end.toLocaleDateString(),
-        totalCount,
-        itemType
-      );
+      message = `正在扫描${itemType}: 从 ${range.start.toLocaleDateString()} 到 ${range.end.toLocaleDateString()}，共找到 ${totalCount} 个${itemType}`;
     } else if (range && range.extra) {
       // 支持传入额外信息的情况
-      Logger.log("找到了 %d 个%s，%s", totalCount, itemType, range.extra);
+      message = `找到了 ${totalCount} 个${itemType}，${range.extra}`;
     } else {
-      Logger.log("找到了 %d 个%s，开始逐一检查...", totalCount, itemType);
+      message = `找到了 ${totalCount} 个${itemType}，开始逐一检查...`;
     }
+    Logger.log(message);
+    console.log(message);
   },
 
 };
