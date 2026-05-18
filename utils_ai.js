@@ -48,6 +48,48 @@ const UtilsAI = {
   },
 
   /**
+   * 对可恢复的AI调用执行有限重试，最终失败时抛出最后一次错误。
+   * @param {Function} operation - 要执行的函数
+   * @param {Object} options - 重试配置
+   * @param {number} options.maxAttempts - 最大尝试次数（默认3）
+   * @param {number} options.retryDelaySeconds - 重试间隔秒数（默认5）
+   * @param {string} options.context - 日志上下文
+   * @returns {*} operation的返回值
+   */
+  withRetry: function(operation, options = {}) {
+    if (typeof operation !== 'function') {
+      throw new Error('withRetry需要传入函数');
+    }
+
+    const maxAttempts = Math.max(1, options.maxAttempts || 3);
+    const retryDelaySeconds = options.retryDelaySeconds ?? 5;
+    const context = options.context || 'AI调用';
+    let lastError = null;
+
+    for (let attempt = 1; attempt <= maxAttempts; attempt++) {
+      try {
+        return operation(attempt);
+      } catch (error) {
+        lastError = error;
+
+        if (attempt < maxAttempts) {
+          if (typeof Utils !== 'undefined' && typeof Utils.logError === 'function') {
+            Utils.logError(error, `${context}失败，第${attempt}次尝试失败，${retryDelaySeconds}秒后重试`);
+          } else {
+            Logger.log(`${context}失败，第${attempt}次尝试失败，${retryDelaySeconds}秒后重试: ${error.message || error.toString()}`);
+          }
+
+          if (retryDelaySeconds > 0) {
+            Utilities.sleep(retryDelaySeconds * 1000);
+          }
+        }
+      }
+    }
+
+    throw lastError || new Error(`${context}失败`);
+  },
+
+  /**
    * 过滤掉值为undefined的字段
    * @param {Object} source - 原始对象
    * @returns {Object} 过滤后的对象

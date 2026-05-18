@@ -559,51 +559,62 @@ const NewsUtils = {
      */
     classifyNewsByTitle: function(title) {
       const prompt = AI_CLASSIFICATION_PROMPT + title;
+      const MAX_ATTEMPTS = 3;
+      const RETRY_DELAY_SECONDS = 5;
+      const aiUtils = this;
 
-      try {
-        // 验证AI工具依赖
-        if (typeof UtilsAI === 'undefined' || typeof UtilsAI.askGemini !== 'function') {
-          throw new Error('UtilsAI对象不可用，请确保已部署utils_ai.js文件');
-        }
-
-        const rawResponse = UtilsAI.askGemini({
-          prompt: prompt,
-          model: 'gemini-flash-latest'
-        });
-
-        // 清理思考标签，提取最终结果
-        const response = this.cleanThinkingTags(rawResponse);
-
-        // 解析响应格式："1,政治新闻" 或 "0,体育新闻"
-        const parts = response.split(',').map(s => s.trim());
-
-        if (parts.length < 2) {
-          throw new Error(`AI响应格式错误: ${response}`);
-        }
-
-        const shouldSaveStr = parts[0];
-        const category = parts.slice(1).join(','); // 处理可能包含逗号的分类名称
-
-        // 验证shouldSaveStr必须是"0"或"1"
-        if (shouldSaveStr !== '0' && shouldSaveStr !== '1') {
-          throw new Error(`AI响应中的保存标志无效: ${shouldSaveStr}`);
-        }
-
-        const shouldSave = shouldSaveStr === '1';
-
-        Utils.logAction("AI分类结果", {
-          title: title.substring(0, 50) + (title.length > 50 ? '...' : ''),
-          shouldSave: shouldSave,
-          category: category
-        });
-
-        return { shouldSave, category };
-
-      } catch (error) {
-        // AI调用失败：默认跳过（shouldSave = false），保守策略
-        Utils.logError(error, `AI分类标题: ${title.substring(0, 50)}...`);
+      // 验证AI工具依赖
+      if (typeof UtilsAI === 'undefined' || typeof UtilsAI.askGemini !== 'function' || typeof UtilsAI.withRetry !== 'function') {
+        Utils.logError(new Error('UtilsAI对象不可用，请确保已部署utils_ai.js文件'), `AI分类标题: ${title.substring(0, 50)}...`);
         return { shouldSave: false, category: '分类失败' };
       }
+
+      try {
+        return UtilsAI.withRetry(function() {
+          const rawResponse = UtilsAI.askGemini({
+            prompt: prompt,
+            model: 'gemini-flash-latest'
+          });
+
+          // 清理思考标签，提取最终结果
+          const response = aiUtils.cleanThinkingTags(rawResponse);
+
+          // 解析响应格式："1,政治新闻" 或 "0,体育新闻"
+          const parts = response.split(',').map(s => s.trim());
+
+          if (parts.length < 2) {
+            throw new Error(`AI响应格式错误: ${response}`);
+          }
+
+          const shouldSaveStr = parts[0];
+          const category = parts.slice(1).join(','); // 处理可能包含逗号的分类名称
+
+          // 验证shouldSaveStr必须是"0"或"1"
+          if (shouldSaveStr !== '0' && shouldSaveStr !== '1') {
+            throw new Error(`AI响应中的保存标志无效: ${shouldSaveStr}`);
+          }
+
+          const shouldSave = shouldSaveStr === '1';
+
+          Utils.logAction("AI分类结果", {
+            title: title.substring(0, 50) + (title.length > 50 ? '...' : ''),
+            shouldSave: shouldSave,
+            category: category
+          });
+
+          return { shouldSave, category };
+
+        }, {
+          maxAttempts: MAX_ATTEMPTS,
+          retryDelaySeconds: RETRY_DELAY_SECONDS,
+          context: `AI分类，标题: ${title.substring(0, 50)}...`
+        });
+      } catch (error) {
+        Utils.logError(error, `AI分类失败，已重试${MAX_ATTEMPTS}次，跳过新闻，标题: ${title.substring(0, 50)}...`);
+      }
+
+      // AI调用失败：默认跳过（shouldSave = false），保守策略
+      return { shouldSave: false, category: '分类失败' };
     },
 
     /**
@@ -613,36 +624,53 @@ const NewsUtils = {
      */
     summarizeContent: function(content) {
       const prompt = AI_SUMMARIZATION_PROMPT + content;
+      const MAX_ATTEMPTS = 3;
+      const RETRY_DELAY_SECONDS = 5;
+      const aiUtils = this;
 
-      try {
-        // 验证AI工具依赖
-        if (typeof UtilsAI === 'undefined' || typeof UtilsAI.askGemini !== 'function') {
-          throw new Error('UtilsAI对象不可用，请确保已部署utils_ai.js文件');
-        }
-
-        const rawResponse = UtilsAI.askGemini({
-          prompt: prompt,
-          model: 'gemini-flash-lite-latest',
-          temperature: 0.2,
-          maxTokens: 512
-        });
-
-        // 清理思考标签，提取最终结果
-        const response = this.cleanThinkingTags(rawResponse);
-
-        return {
-          content: response,
-          didSummarize: true
-        };
-
-      } catch (error) {
-        // AI总结失败：返回原内容
-        Utils.logError(error, "AI内容总结失败，返回原内容");
+      // 验证AI工具依赖
+      if (typeof UtilsAI === 'undefined' || typeof UtilsAI.askGemini !== 'function' || typeof UtilsAI.withRetry !== 'function') {
+        Utils.logError(new Error('UtilsAI对象不可用，请确保已部署utils_ai.js文件'), "AI内容总结失败，返回原内容");
         return {
           content: content,
           didSummarize: false
         };
       }
+
+      try {
+        return UtilsAI.withRetry(function() {
+          const rawResponse = UtilsAI.askGemini({
+            prompt: prompt,
+            model: 'gemini-flash-lite-latest',
+            temperature: 0.2,
+            maxTokens: 512
+          });
+
+          // 清理思考标签，提取最终结果
+          const response = aiUtils.cleanThinkingTags(rawResponse);
+
+          if (!response || response.trim().length === 0) {
+            throw new Error('AI总结返回空内容');
+          }
+
+          return {
+            content: response,
+            didSummarize: true
+          };
+
+        }, {
+          maxAttempts: MAX_ATTEMPTS,
+          retryDelaySeconds: RETRY_DELAY_SECONDS,
+          context: 'AI内容总结'
+        });
+      } catch (error) {
+        Utils.logError(error, `AI内容总结失败，已重试${MAX_ATTEMPTS}次，返回原内容`);
+      }
+
+      return {
+        content: content,
+        didSummarize: false
+      };
     },
 
     /**
