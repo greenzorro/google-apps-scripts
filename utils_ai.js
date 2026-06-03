@@ -54,6 +54,7 @@ const UtilsAI = {
    * @param {number} options.maxAttempts - 最大尝试次数（默认3）
    * @param {number} options.retryDelaySeconds - 重试间隔秒数（默认5）
    * @param {string} options.context - 日志上下文
+   * @param {Function} options.shouldRetry - 可选，返回false时立即停止当前重试链
    * @returns {*} operation的返回值
    */
   withRetry: function(operation, options = {}) {
@@ -64,6 +65,7 @@ const UtilsAI = {
     const maxAttempts = Math.max(1, options.maxAttempts || 3);
     const retryDelaySeconds = options.retryDelaySeconds ?? 5;
     const context = options.context || 'AI调用';
+    const shouldRetry = options.shouldRetry;
     let lastError = null;
 
     for (let attempt = 1; attempt <= maxAttempts; attempt++) {
@@ -73,6 +75,15 @@ const UtilsAI = {
         lastError = error;
 
         if (attempt < maxAttempts) {
+          if (typeof shouldRetry === 'function' && shouldRetry(error, attempt, maxAttempts) === false) {
+            if (typeof Utils !== 'undefined' && typeof Utils.logError === 'function') {
+              Utils.logError(error, `${context}失败，按策略停止当前模型重试`);
+            } else {
+              Logger.log(`${context}失败，按策略停止当前模型重试: ${error.message || error.toString()}`);
+            }
+            throw error;
+          }
+
           if (typeof Utils !== 'undefined' && typeof Utils.logError === 'function') {
             Utils.logError(error, `${context}失败，第${attempt}次尝试失败，${retryDelaySeconds}秒后重试`);
           } else {

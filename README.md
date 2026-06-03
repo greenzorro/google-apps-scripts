@@ -56,7 +56,7 @@ projects/google-apps-scripts/
 - `google_drive.js` - Google Drive文件清理脚本，支持多种清理场景
 - `google_sheets.js` - Google Sheets数据操作和微信公众号数据更新
 - `demo_models.js` - AI模型调用演示脚本
-- `news_feed.js` - RSS新闻AI过滤系统，从RSS源获取新闻并通过AI分类过滤（详细文档参见 [news_feed.md](news_feed.md)）
+- `news_feed.js` - RSS新闻AI过滤系统，从RSS源获取新闻，通过AI模型链分类过滤并保存到Drive（详细文档参见 [news_feed.md](news_feed.md)）
 
 ### 部署建议
 
@@ -196,10 +196,17 @@ gdriveCleanAiStudio();           // Drive清理
 - **设计模式：** 命名空间封装，避免全局作用域污染
 
 #### AI服务调用工具
+- `UtilsAI.withRetry(operation, options)` - 对AI调用执行有限重试，支持自定义重试间隔和`shouldRetry`停止策略
 - `UtilsAI.askGemini(options)` - 使用对象参数调用Gemini，支持 `prompt` / `messages` / `model` / `temperature` / `maxTokens` 等配置
 - `UtilsAI.askDeepseek(options)` - 使用对象参数调用DeepSeek，支持通用生成参数与 `deepseek.thinking` 等专有配置
 - `UtilsAI.askGroq(options)` - 使用对象参数调用Groq，支持通用生成参数与 `groq.reasoningEffort` 等专有配置
 - `UtilsAI.askCerebras(options)` - 使用对象参数调用Cerebras，支持通用生成参数与 `cerebras.reasoningEffort` 等专有配置
+
+#### 设计特点
+- **统一参数接口**：所有AI服务均使用对象参数，支持`prompt`、`messages`、`systemPrompt`等通用字段
+- **可控重试**：`withRetry()`支持最大尝试次数、重试间隔和按错误类型停止当前重试链
+- **多服务商支持**：Gemini、DeepSeek、Groq、Cerebras共用工具层，业务脚本可按模型链组合使用
+- **错误透传**：API错误包含服务商、HTTP状态码和响应摘要，便于业务层进行模型切换和熔断
 
 ### 4.5 `utils_network.js` - 网络请求工具库
 **功能：** 提供通用HTTP请求功能，支持重定向、超时、用户代理配置等，采用命名空间模式封装在UtilsNetwork对象中

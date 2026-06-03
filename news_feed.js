@@ -78,6 +78,50 @@ const PERFORMANCE_CONFIG = {
 };
 
 /**
+ * AI分类模型链配置
+ * 按顺序尝试Gemini模型和跨服务商兜底模型。
+ */
+const AI_CLASSIFICATION_MODELS = [
+  {
+    provider: 'gemini',
+    model: 'gemini-flash-latest'
+  },
+  {
+    provider: 'gemini',
+    model: 'gemini-3-flash-preview'
+  },
+  {
+    provider: 'gemini',
+    model: 'gemini-2.5-flash'
+  },
+  {
+    provider: 'deepseek',
+    model: 'deepseek-v4-flash'
+  }
+];
+
+/**
+ * AI总结模型链配置
+ * 按顺序尝试轻量总结模型。
+ */
+const AI_SUMMARIZATION_MODELS = [
+  {
+    provider: 'gemini',
+    model: 'gemini-flash-lite-latest'
+  },
+  {
+    provider: 'gemini',
+    model: 'gemini-2.5-flash-lite'
+  }
+];
+
+/**
+ * AI模型运行内熔断状态
+ * 仅在单次Apps Script执行期间生效，避免短时间内多条新闻反复撞同一个不可用模型。
+ */
+const AI_MODEL_CIRCUIT_BREAKER = {};
+
+/**
  * 内容提取配置
  */
 const CONTENT_CONFIG = {
@@ -553,67 +597,207 @@ const NewsUtils = {
    */
   AI: {
     /**
+     * 从AI错误消息中提取HTTP状态码
+     * @param {Error} error - AI调用错误
+     * @return {number|null} HTTP状态码
+     */
+    getHttpStatusFromError: function(error) {
+      const message = error && error.message ? error.message : String(error || '');
+      const match = message.match(/状态码:\s*(\d{3})|HTTP\s*(\d{3})/i);
+      return match ? parseInt(match[1] || match[2], 10) : null;
+    },
+
+    /**
+     * 判断当前错误是否应该快速切换到下一个模型
+     * @param {Error} error - AI调用错误
+     * @return {boolean} 是否跳过当前模型后续重试
+     */
+    shouldFailoverModel: function(error) {
+      const statusCode = this.getHttpStatusFromError(error);
+      return [401, 403, 429, 502, 503, 504].includes(statusCode);
+    },
+
+    /**
+     * 获取模型链中的模型唯一键
+     * @param {Object} modelConfig - 模型配置
+     * @return {string} 模型键
+     */
+    getModelKey: function(modelConfig) {
+      return `${modelConfig.provider}/${modelConfig.model}`;
+    },
+
+    /**
+     * 判断模型当前是否处于运行内熔断状态
+     * @param {Object} modelConfig - 模型配置
+     * @return {boolean} 是否应跳过该模型
+     */
+    isModelCircuitOpen: function(modelConfig) {
+      const modelKey = this.getModelKey(modelConfig);
+      const breakerState = AI_MODEL_CIRCUIT_BREAKER[modelKey];
+
+      if (!breakerState) {
+        return false;
+      }
+
+      if (breakerState.disabledUntil === Infinity) {
+        return true;
+      }
+
+      if (Date.now() < breakerState.disabledUntil) {
+        return true;
+      }
+
+      delete AI_MODEL_CIRCUIT_BREAKER[modelKey];
+      return false;
+    },
+
+    /**
+     * 根据HTTP错误状态更新运行内模型熔断状态
+     * @param {Object} modelConfig - 模型配置
+     * @param {number|null} statusCode - HTTP状态码
+     */
+    updateModelCircuitBreaker: function(modelConfig, statusCode) {
+      if (!statusCode) {
+        return;
+      }
+
+      const modelKey = this.getModelKey(modelConfig);
+
+      if (statusCode === 429) {
+        AI_MODEL_CIRCUIT_BREAKER[modelKey] = {
+          disabledUntil: Date.now() + 60 * 1000,
+          statusCode: statusCode
+        };
+        Utils.logAction("AI模型临时跳过", {
+          name: modelKey,
+          extra: `HTTP ${statusCode}，60秒内不再尝试`
+        });
+        return;
+      }
+
+      if ([502, 503, 504].includes(statusCode)) {
+        AI_MODEL_CIRCUIT_BREAKER[modelKey] = {
+          disabledUntil: Date.now() + 15 * 1000,
+          statusCode: statusCode
+        };
+        Utils.logAction("AI模型临时跳过", {
+          name: modelKey,
+          extra: `HTTP ${statusCode}，15秒内不再尝试`
+        });
+        return;
+      }
+
+      if ([401, 403].includes(statusCode)) {
+        AI_MODEL_CIRCUIT_BREAKER[modelKey] = {
+          disabledUntil: Infinity,
+          statusCode: statusCode
+        };
+        Utils.logAction("AI模型本轮停用", {
+          name: modelKey,
+          extra: `HTTP ${statusCode}，本次执行不再尝试`
+        });
+      }
+    },
+
+    /**
      * AI新闻分类函数
      * @param {string} title - 新闻标题
      * @return {Object} 包含shouldSave和category属性的对象
      */
     classifyNewsByTitle: function(title) {
       const prompt = AI_CLASSIFICATION_PROMPT + title;
-      const MAX_ATTEMPTS = 3;
-      const RETRY_DELAY_SECONDS = 5;
+      const MAX_ATTEMPTS_PER_MODEL = 2;
+      const RETRY_DELAY_SECONDS = 1;
       const aiUtils = this;
 
       // 验证AI工具依赖
-      if (typeof UtilsAI === 'undefined' || typeof UtilsAI.askGemini !== 'function' || typeof UtilsAI.withRetry !== 'function') {
+      if (typeof UtilsAI === 'undefined' || typeof UtilsAI.withRetry !== 'function') {
         Utils.logError(new Error('UtilsAI对象不可用，请确保已部署utils_ai.js文件'), `AI分类标题: ${title.substring(0, 50)}...`);
         return { shouldSave: false, category: '分类失败' };
       }
 
-      try {
-        return UtilsAI.withRetry(function() {
-          const rawResponse = UtilsAI.askGemini({
-            prompt: prompt,
-            model: 'gemini-flash-latest'
-          });
+      const callClassificationModel = function(modelConfig) {
+        const options = {
+          prompt: prompt,
+          model: modelConfig.model
+        };
 
-          // 清理思考标签，提取最终结果
-          const response = aiUtils.cleanThinkingTags(rawResponse);
-
-          // 解析响应格式："1,政治新闻" 或 "0,体育新闻"
-          const parts = response.split(',').map(s => s.trim());
-
-          if (parts.length < 2) {
-            throw new Error(`AI响应格式错误: ${response}`);
+        if (modelConfig.provider === 'gemini') {
+          if (typeof UtilsAI.askGemini !== 'function') {
+            throw new Error('UtilsAI.askGemini 不可用');
           }
+          return UtilsAI.askGemini(options);
+        }
 
-          const shouldSaveStr = parts[0];
-          const category = parts.slice(1).join(','); // 处理可能包含逗号的分类名称
-
-          // 验证shouldSaveStr必须是"0"或"1"
-          if (shouldSaveStr !== '0' && shouldSaveStr !== '1') {
-            throw new Error(`AI响应中的保存标志无效: ${shouldSaveStr}`);
+        if (modelConfig.provider === 'deepseek') {
+          if (typeof UtilsAI.askDeepseek !== 'function') {
+            throw new Error('UtilsAI.askDeepseek 不可用');
           }
+          return UtilsAI.askDeepseek(options);
+        }
 
-          const shouldSave = shouldSaveStr === '1';
+        throw new Error(`不支持的AI分类provider: ${modelConfig.provider}`);
+      };
 
-          Utils.logAction("AI分类结果", {
-            title: title.substring(0, 50) + (title.length > 50 ? '...' : ''),
-            shouldSave: shouldSave,
-            category: category
+      for (const modelConfig of AI_CLASSIFICATION_MODELS) {
+        if (aiUtils.isModelCircuitOpen(modelConfig)) {
+          Utils.logAction("跳过熔断AI分类模型", {
+            name: aiUtils.getModelKey(modelConfig)
           });
+          continue;
+        }
 
-          return { shouldSave, category };
+        try {
+          return UtilsAI.withRetry(function() {
+            const rawResponse = callClassificationModel(modelConfig);
 
-        }, {
-          maxAttempts: MAX_ATTEMPTS,
-          retryDelaySeconds: RETRY_DELAY_SECONDS,
-          context: `AI分类，标题: ${title.substring(0, 50)}...`
-        });
-      } catch (error) {
-        Utils.logError(error, `AI分类失败，已重试${MAX_ATTEMPTS}次，跳过新闻，标题: ${title.substring(0, 50)}...`);
+            // 清理思考标签，提取最终结果
+            const response = aiUtils.cleanThinkingTags(rawResponse);
+
+            // 解析响应格式："1,政治新闻" 或 "0,体育新闻"
+            const parts = response.split(',').map(s => s.trim());
+
+            if (parts.length < 2) {
+              throw new Error(`AI响应格式错误: ${response}`);
+            }
+
+            const shouldSaveStr = parts[0];
+            const category = parts.slice(1).join(','); // 处理可能包含逗号的分类名称
+
+            // 验证shouldSaveStr必须是"0"或"1"
+            if (shouldSaveStr !== '0' && shouldSaveStr !== '1') {
+              throw new Error(`AI响应中的保存标志无效: ${shouldSaveStr}`);
+            }
+
+            const shouldSave = shouldSaveStr === '1';
+
+            Utils.logAction("AI分类结果", {
+              title: title.substring(0, 50) + (title.length > 50 ? '...' : ''),
+              model: `${modelConfig.provider}/${modelConfig.model}`,
+              shouldSave: shouldSave,
+              category: category
+            });
+
+            return { shouldSave, category };
+
+          }, {
+            maxAttempts: MAX_ATTEMPTS_PER_MODEL,
+            retryDelaySeconds: RETRY_DELAY_SECONDS,
+            context: `AI分类(${modelConfig.provider}/${modelConfig.model})，标题: ${title.substring(0, 50)}...`,
+            shouldRetry: function(error) {
+              return !aiUtils.shouldFailoverModel(error);
+            }
+          });
+        } catch (error) {
+          const statusCode = aiUtils.getHttpStatusFromError(error);
+          aiUtils.updateModelCircuitBreaker(modelConfig, statusCode);
+          const extra = statusCode ? `HTTP ${statusCode}，` : '';
+          Utils.logError(error, `AI分类模型失败，${extra}切换下一个模型: ${modelConfig.provider}/${modelConfig.model}`);
+        }
       }
 
       // AI调用失败：默认跳过（shouldSave = false），保守策略
+      Utils.logError(new Error('AI分类模型链全部失败'), `AI分类失败，跳过新闻，标题: ${title.substring(0, 50)}...`);
       return { shouldSave: false, category: '分类失败' };
     },
 
@@ -624,8 +808,8 @@ const NewsUtils = {
      */
     summarizeContent: function(content) {
       const prompt = AI_SUMMARIZATION_PROMPT + content;
-      const MAX_ATTEMPTS = 3;
-      const RETRY_DELAY_SECONDS = 5;
+      const MAX_ATTEMPTS_PER_MODEL = 2;
+      const RETRY_DELAY_SECONDS = 2;
       const aiUtils = this;
 
       // 验证AI工具依赖
@@ -637,36 +821,65 @@ const NewsUtils = {
         };
       }
 
-      try {
-        return UtilsAI.withRetry(function() {
-          const rawResponse = UtilsAI.askGemini({
+      const callSummarizationModel = function(modelConfig) {
+        if (modelConfig.provider === 'gemini') {
+          return UtilsAI.askGemini({
             prompt: prompt,
-            model: 'gemini-flash-lite-latest',
+            model: modelConfig.model,
             temperature: 0.2,
             maxTokens: 512
           });
+        }
 
-          // 清理思考标签，提取最终结果
-          const response = aiUtils.cleanThinkingTags(rawResponse);
+        throw new Error(`不支持的AI总结provider: ${modelConfig.provider}`);
+      };
 
-          if (!response || response.trim().length === 0) {
-            throw new Error('AI总结返回空内容');
-          }
+      for (const modelConfig of AI_SUMMARIZATION_MODELS) {
+        if (aiUtils.isModelCircuitOpen(modelConfig)) {
+          Utils.logAction("跳过熔断AI总结模型", {
+            name: aiUtils.getModelKey(modelConfig)
+          });
+          continue;
+        }
 
-          return {
-            content: response,
-            didSummarize: true
-          };
+        try {
+          return UtilsAI.withRetry(function() {
+            const rawResponse = callSummarizationModel(modelConfig);
 
-        }, {
-          maxAttempts: MAX_ATTEMPTS,
-          retryDelaySeconds: RETRY_DELAY_SECONDS,
-          context: 'AI内容总结'
-        });
-      } catch (error) {
-        Utils.logError(error, `AI内容总结失败，已重试${MAX_ATTEMPTS}次，返回原内容`);
+            // 清理思考标签，提取最终结果
+            const response = aiUtils.cleanThinkingTags(rawResponse);
+
+            if (!response || response.trim().length === 0) {
+              throw new Error('AI总结返回空内容');
+            }
+
+            Utils.logAction("AI总结结果", {
+              model: `${modelConfig.provider}/${modelConfig.model}`,
+              contentLength: response.length
+            });
+
+            return {
+              content: response,
+              didSummarize: true
+            };
+
+          }, {
+            maxAttempts: MAX_ATTEMPTS_PER_MODEL,
+            retryDelaySeconds: RETRY_DELAY_SECONDS,
+            context: `AI内容总结(${modelConfig.provider}/${modelConfig.model})`,
+            shouldRetry: function(error) {
+              return !aiUtils.shouldFailoverModel(error);
+            }
+          });
+        } catch (error) {
+          const statusCode = aiUtils.getHttpStatusFromError(error);
+          aiUtils.updateModelCircuitBreaker(modelConfig, statusCode);
+          const extra = statusCode ? `HTTP ${statusCode}，` : '';
+          Utils.logError(error, `AI总结模型失败，${extra}切换下一个模型: ${modelConfig.provider}/${modelConfig.model}`);
+        }
       }
 
+      Utils.logError(new Error('AI总结模型链全部失败'), 'AI内容总结失败，返回原内容');
       return {
         content: content,
         didSummarize: false
@@ -704,7 +917,7 @@ const NewsUtils = {
           throw new Error('UtilsGoogleDrive对象或ensureNestedFolderExists函数不可用，请确保已部署utils_google_drive.js文件');
         }
 
-        // 构建文件夹路径：rootFolder/subFolder（不再按日期分文件夹）
+        // 构建固定新闻文本存储路径：rootFolder/subFolder
         const folderPath = `${rootFolder}/${subFolder}`;
         const dateFolder = UtilsGoogleDrive.ensureNestedFolderExists(folderPath);
 
@@ -909,7 +1122,6 @@ function processNewsFeedsByGroup(groupNumber) {
 
             // 检查内容长度：小于最小阈值丢弃，大于最大阈值使用AI总结，之间保存原文
             if (extractedContent.length > CONTENT_CONFIG.maxContentLength) {
-              // 【日志】准备执行AI总结
               Utils.logAction("执行AI总结", {
                 title: entry.title.substring(0, 50) + (entry.title.length > 50 ? '...' : ''),
                 extra: `原文长度: ${extractedContent.length}字符，超过阈值${CONTENT_CONFIG.maxContentLength}字符，已运行${getElapsedSeconds()}秒`
@@ -921,7 +1133,6 @@ function processNewsFeedsByGroup(groupNumber) {
               finalContent = summarizationResult.content;
               isAISummarized = summarizationResult.didSummarize;
 
-              // 【日志】AI总结完成
               Utils.logAction("AI总结完成", {
                 title: entry.title.substring(0, 50) + (entry.title.length > 50 ? '...' : ''),
                 extra: isAISummarized
@@ -929,7 +1140,6 @@ function processNewsFeedsByGroup(groupNumber) {
                   : `AI总结失败，回退原文: ${finalContent.length}字符，已运行${getElapsedSeconds()}秒`
               });
             } else {
-              // 【日志】跳过AI总结，保存原文
               Utils.logAction("跳过AI总结", {
                 title: entry.title.substring(0, 50) + (entry.title.length > 50 ? '...' : ''),
                 extra: `内容长度: ${extractedContent.length}字符，未超过阈值${CONTENT_CONFIG.maxContentLength}字符`
