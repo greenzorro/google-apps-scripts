@@ -498,7 +498,7 @@ const UtilsAI = {
     const scriptProperties = PropertiesService.getScriptProperties();
     const apiKey = scriptProperties.getProperty('GROQ_API_KEY');
     const config = this.normalizeOptions(options, 'groq', {
-      model: 'qwen/qwen3-32b',
+      model: 'openai/gpt-oss-120b',
       temperature: 0.7,
       maxTokens: 8192,
       topP: 1
@@ -572,7 +572,7 @@ const UtilsAI = {
     const scriptProperties = PropertiesService.getScriptProperties();
     const apiKey = scriptProperties.getProperty('CEREBRAS_API_KEY');
     const config = this.normalizeOptions(options, 'cerebras', {
-      model: 'qwen-3-235b-a22b-instruct-2507',
+      model: 'gemma-4-31b',
       temperature: 0.7,
       maxTokens: 8192,
       topP: 0.95

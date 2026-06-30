@@ -34,7 +34,7 @@ function testAllAIServices() {
   Logger.log('--- 测试 Groq API ---');
   const groqResponse = UtilsAI.askGroq({
     prompt: '你好，请用一句话介绍你自己。',
-    model: 'qwen/qwen3-32b',
+    model: 'openai/gpt-oss-120b',
     maxTokens: 128
   });
   Logger.log('Groq AI回复: ' + groqResponse);
@@ -42,7 +42,7 @@ function testAllAIServices() {
   Logger.log('--- 测试 Cerebras API ---');
   const cerebrasResponse = UtilsAI.askCerebras({
     prompt: '你好，请用一句话介绍你自己。',
-    model: 'qwen-3-235b-a22b-instruct-2507',
+    model: 'gemma-4-31b',
     maxTokens: 128
   });
   Logger.log('Cerebras AI回复: ' + cerebrasResponse);
