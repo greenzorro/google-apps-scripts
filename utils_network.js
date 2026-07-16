@@ -4,7 +4,7 @@
  * Created: 2025-12-10
  * Author: Victor Cheng
  * Email: hi@victor42.work
- * Description: 网络请求工具函数库，提供通用HTTP请求功能，支持重定向、超时、用户代理配置等。
+ * Description: 网络请求工具函数库，封装 UrlFetchApp，提供默认 User-Agent、可选手动重定向跟随，以及 XML/HTML/文本便捷方法。
  */
 
 /**
@@ -19,14 +19,15 @@ const UtilsNetwork = {
    */
 
   /**
-   * 通用HTTP请求函数，支持重定向、超时和自定义配置
+   * 发起 HTTP 请求并返回响应。
+   * 默认 followRedirects=true，由 UrlFetchApp 自动跟随重定向。
+   * 若 followRedirects=false，则对 301/302/307/308 做有限次数的手动跟随（maxRedirects）。
    * @param {string} url - 请求URL
    * @param {Object} options - 配置选项
-   * @param {number} options.timeout - 请求超时时间（毫秒，默认30000）
-   * @param {number} options.maxRedirects - 最大重定向次数（默认5），内部存储为maximumRedirects属性
+   * @param {number} options.maxRedirects - 手动跟随重定向时的最大次数（默认5，仅 followRedirects=false 时生效）
    * @param {Object} options.headers - 自定义请求头
    * @param {boolean} options.muteHttpExceptions - 是否静默处理HTTP异常（默认true）
-   * @param {boolean} options.followRedirects - 是否跟随重定向（默认true）
+   * @param {boolean} options.followRedirects - 是否由 UrlFetchApp 自动跟随重定向（默认true）
    * @param {string} options.method - HTTP方法（默认'get'）
    * @param {string|Object} options.payload - 请求负载
    * @param {string} options.contentType - 内容类型
@@ -37,7 +38,6 @@ const UtilsNetwork = {
       muteHttpExceptions: options.muteHttpExceptions !== false,
       followRedirects: options.followRedirects !== false,
       maximumRedirects: options.maxRedirects || 5,
-      timeout: options.timeout || 30000,
       method: options.method || 'get',
       payload: options.payload,
       contentType: options.contentType,
@@ -47,7 +47,10 @@ const UtilsNetwork = {
       }
     };
 
-    // 处理重定向
+    if (config.followRedirects) {
+      return UrlFetchApp.fetch(url, config);
+    }
+
     return this._handleRedirects(url, config);
   },
 
@@ -193,8 +196,7 @@ const UtilsNetwork = {
     try {
       const checkOptions = {
         ...options,
-        method: 'head',
-        timeout: options.timeout || 10000 // HEAD请求使用较短超时
+        method: 'head'
       };
 
       const response = this.fetchWithRetry(url, checkOptions);

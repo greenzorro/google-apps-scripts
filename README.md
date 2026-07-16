@@ -48,7 +48,7 @@ projects/google-apps-scripts/
 - `utils_google_drive.js` - Google Drive操作工具库（文件夹、文件管理、清理功能）
 - `utils_google_sheets.js` - Google Sheets操作工具库（数据读取、更新、查找功能）
 - `utils_ai.js` - AI服务工具库（支持多种AI服务API调用）
-- `utils_network.js` - 网络请求工具库（HTTP请求、重定向处理、超时控制）
+- `utils_network.js` - 网络请求工具库（HTTP 请求、User-Agent、重定向跟随）
 
 **业务功能脚本：**
 - `calendar.js` - 日历事件监控和变更检测
@@ -133,7 +133,7 @@ gdriveCleanAiStudio();           // Drive清理
 **文本处理工具：**
 - `Utils.hasExcludedChars(text, excludedArray)` - 检查文本是否包含排除字符
 - `Utils.safeFileName(text, maxLength)` - 生成安全的文件名，移除非法字符并限制长度
-- `Utils.cleanHtmlContent(html, options)` - 通用HTML内容清理和格式化，保留基本段落格式
+- `Utils.cleanHtmlContent(html, options)` - 将 HTML 清理为纯文本；可选保留段落换行、移除图片
 
 **HTML处理工具：**
 - `Utils.removeHtmlElementsBySelector(html, selectors)` - 从HTML内容中移除指定选择器匹配的元素，支持CSS类、属性、标签选择器
@@ -181,8 +181,8 @@ gdriveCleanAiStudio();           // Drive清理
 - **设计模式：** 命名空间封装，避免全局作用域污染
 
 #### Google Sheets操作工具
-- `UtilsGoogleSheets.readSheetData(file, rangeA1)` - 读取Google Sheets文件指定范围数据
-- `UtilsGoogleSheets.readSheetByFileName(fileName, sheetName, rangeA1)` - 通过文件名读取Google Sheets数据
+- `UtilsGoogleSheets.readSheetData(file, rangeA1)` - 读取表格文件指定范围（Google Sheets 取首表；CSV 按范围解析）
+- `UtilsGoogleSheets.readSheetByFileName(fileName, sheetName, rangeA1)` - 通过文件名与工作表名读取指定区域
 - `UtilsGoogleSheets.updateSheetByFileName(fileName, sheetName, rangeA1, data)` - 通过文件名更新Google Sheets数据
 - `UtilsGoogleSheets.clearSheetByFileName(fileName, sheetName, rangeA1)` - 通过文件名清空Google Sheets数据
 - `UtilsGoogleSheets.findTextInColumn(fileName, sheetName, column, searchText)` - 在Google Sheets列中查找文本内容
@@ -209,22 +209,21 @@ gdriveCleanAiStudio();           // Drive清理
 - **错误透传**：API错误包含服务商、HTTP状态码和响应摘要，便于业务层进行模型切换和熔断
 
 ### 4.5 `utils_network.js` - 网络请求工具库
-**功能：** 提供通用HTTP请求功能，支持重定向、超时、用户代理配置等，采用命名空间模式封装在UtilsNetwork对象中
+**功能：** 封装 UrlFetchApp 的通用 HTTP 请求，采用命名空间模式封装在 UtilsNetwork 对象中
 - **设计模式：** 命名空间封装，避免全局作用域污染
 
 #### 网络请求工具
-- `UtilsNetwork.fetchWithRetry(url, options)` - 通用HTTP请求函数，支持重定向、超时和自定义配置
-- `UtilsNetwork.fetchXml(url, options)` - 专门用于获取和解析XML内容的函数（RSS/Atom解析专用）
-- `UtilsNetwork.fetchHtml(url, options)` - 获取HTML内容（专门用于网页抓取）
-- `UtilsNetwork.fetchText(url, options)` - 简单的GET请求，返回文本内容
-- `UtilsNetwork.checkUrlAccessible(url, options)` - 检查URL是否可访问（HEAD请求）
-- `UtilsNetwork.fetchHeaders(url, options)` - 获取响应头信息
+- `UtilsNetwork.fetchWithRetry(url, options)` - 通用 HTTP 请求；默认由平台跟随重定向，也可关闭后手动跟随
+- `UtilsNetwork.fetchXml(url, options)` - 获取 XML 文本（RSS/Atom 等）
+- `UtilsNetwork.fetchHtml(url, options)` - 获取 HTML 文本
+- `UtilsNetwork.fetchText(url, options)` - GET 请求并返回文本
+- `UtilsNetwork.checkUrlAccessible(url, options)` - HEAD 探测 URL 是否可访问
+- `UtilsNetwork.fetchHeaders(url, options)` - 获取响应头
 
 #### 设计特点
-- **重定向处理**：支持自动跟随重定向，可配置最大重定向次数
-- **超时控制**：可配置请求超时时间，避免长时间阻塞
-- **用户代理伪装**：使用标准的浏览器User-Agent，避免被网站屏蔽
-- **异常处理**：支持静默HTTP异常处理，便于错误恢复
+- **重定向**：默认 `followRedirects=true` 交给 UrlFetchApp；关闭后可按 `maxRedirects` 手动跟随
+- **用户代理**：默认浏览器形态 User-Agent，降低被简单拦截的概率
+- **异常处理**：默认 `muteHttpExceptions`，便于调用方按状态码处理
 
 ### 4.6 `calendar.js` - 日历变更监控脚本
 **功能：** 在13个月时间范围内监控Google日历的最新更新事件

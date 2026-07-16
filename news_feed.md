@@ -27,7 +27,7 @@
 ### 智能内容提取
 - **双重内容源**：优先使用详情页抓取，RSS/Atom内容作为备用
 - **可配置详情页抓取**：每个RSS源可独立配置内容选择器和排除选择器
-- **HTML内容清理**：自动清理HTML标签，保留基本段落格式，移除图片和无关元素
+- **HTML内容清理**：将详情页/RSS 中的 HTML 转为纯文本，保留段落换行，移除图片和无关元素
 - **记者信息过滤**：自动移除包含"记者"、"监制"、"作者"等关键词的末尾行
 
 ### AI智能总结
@@ -89,8 +89,7 @@ const RSS_FEEDS = [
         excludeSelectors: [  // 排除选择器：从已选内容中移除匹配的元素
             '.adEditor',
             '.pictext'
-        ],
-        // timeout: 30000  // 可选：详情页请求超时（毫秒）
+        ]
     }
   },
   {
@@ -107,8 +106,7 @@ const RSS_FEEDS = [
         excludeSelectors: [  // 排除选择器：从已选内容中移除匹配的元素
             '.google-anno-skip',
             '.otherContent_01'
-        ],
-        // timeout: 30000  // 可选：详情页请求超时（毫秒）
+        ]
     }
   }
 ];
@@ -125,9 +123,7 @@ const STORAGE_CONFIG = {
 ### 性能配置
 ```javascript
 const PERFORMANCE_CONFIG = {
-  maxEntriesPerFeed: 20,  // 每个RSS源目标新新闻数量（真正通过去重过滤的新闻数）
-  requestTimeout: 30000,     // 网络请求超时（毫秒）
-  aiRequestTimeout: 60000    // AI请求超时（毫秒）
+  maxEntriesPerFeed: 20  // 每个RSS源目标新新闻数量（真正通过去重过滤的新闻数）
 };
 ```
 
@@ -136,8 +132,7 @@ const PERFORMANCE_CONFIG = {
 const CONTENT_CONFIG = {
   minContentLength: 30,      // 最小内容长度阈值，低于此值丢弃不保存
   maxContentLength: 500,     // 最大内容长度阈值，超过此值使用AI总结
-  detailPageTimeout: 30000,  // 详情页请求超时（毫秒）
-  detailPageEnabled: true,   // 是否启用详情页抓取
+  detailPageEnabled: true    // 是否启用详情页抓取
 };
 ```
 
@@ -328,7 +323,6 @@ processNewsFeedGroup4();  // 只处理组4
 ### 避免执行超时
 - **分组处理**：系统提供主函数 processNewsFeedsByGroup() 和多个入口函数 processNewsFeedGroupN()，每个入口函数处理部分RSS源，避免单次执行时间过长
 - **条目限制**：每个RSS源默认目标处理20个新新闻（真正通过去重过滤的新闻数，可独立配置）
-- **超时设置**：网络请求30秒超时，AI请求60秒超时
 - **错峰执行**：通过配置不同的触发时间，分散AI API调用
 - **模型链调用**：分类和总结分别按模型链尝试，单个模型不可用时自动切换
 - **运行内熔断**：短时间内跳过出现429、502、503、504等错误的模型，避免多条新闻重复撞同一不可用模型
@@ -417,10 +411,10 @@ processNewsFeedGroup4();  // 只处理组4
 3. 更新文件内容格式
 
 ### 性能调优
-1. 调整`PERFORMANCE_CONFIG`中的超时和限制参数
+1. 调整`PERFORMANCE_CONFIG.maxEntriesPerFeed`或各源的`maxEntriesPerFeed`
 2. 调整`CONTENT_CONFIG`中的内容长度阈值
-3. 优化网络请求配置
-4. 调整内容提取策略
+3. 调整`processGroups`与触发器错峰，分散 AI 调用
+4. 调整详情页`selectors` / `excludeSelectors`以提升正文命中率
 5. 平衡处理速度和资源消耗
 
 ## ✅ 质量保证

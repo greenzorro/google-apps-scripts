@@ -138,19 +138,17 @@ const Utils = {
   },
 
   /**
-   * 通用HTML内容清理和格式化
+   * 将 HTML 清理为纯文本：解码实体、去掉脚本/样式/图片等，可选把 p/br 转为换行，最后移除全部标签。
    * @param {string} html - 原始HTML内容
    * @param {Object} options - 配置选项
-   * @param {boolean} options.keepParagraphs - 是否保留段落格式（默认true）
-   * @param {boolean} options.removeImages - 是否移除图片（默认true）
-   * @param {Array<string>} options.allowedTags - 允许保留的标签（默认['p', 'br', 'strong', 'em']）
-   * @return {string} 清理后的文本内容
+   * @param {boolean} options.keepParagraphs - 为 true 时将 p/br 转为换行（默认true）
+   * @param {boolean} options.removeImages - 是否移除图片相关标签（默认true）
+   * @return {string} 纯文本
    */
   cleanHtmlContent: function(html, options = {}) {
     const config = {
       keepParagraphs: options.keepParagraphs !== false,
-      removeImages: options.removeImages !== false,
-      allowedTags: options.allowedTags || ['p', 'br', 'strong', 'em']
+      removeImages: options.removeImages !== false
     };
 
     let text = html;

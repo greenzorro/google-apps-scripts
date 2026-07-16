@@ -143,8 +143,10 @@ const UtilsGoogleDrive = {
           // 第一级：从根目录开始
           try {
             const folders = DriveApp.getFoldersByName(folderName);
-            currentFolder = folders.hasNext() ? folders.next() : DriveApp.createFolder(folderName);
-            if (!folders.hasNext()) {
+            if (folders.hasNext()) {
+              currentFolder = folders.next();
+            } else {
+              currentFolder = DriveApp.createFolder(folderName);
               Logger.log(`创建文件夹: "${folderName}" (一级文件夹)`);
             }
           } catch (error) {
@@ -155,8 +157,10 @@ const UtilsGoogleDrive = {
           // 后续级别：从当前文件夹的子文件夹中查找或创建
           try {
             const subFolders = currentFolder.getFoldersByName(folderName);
-            currentFolder = subFolders.hasNext() ? subFolders.next() : currentFolder.createFolder(folderName);
-            if (!subFolders.hasNext()) {
+            if (subFolders.hasNext()) {
+              currentFolder = subFolders.next();
+            } else {
+              currentFolder = currentFolder.createFolder(folderName);
               Logger.log(`创建文件夹: "${folderName}" (在 "${pathParts[i-1]}" 内)`);
             }
           } catch (error) {

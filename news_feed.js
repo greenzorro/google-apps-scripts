@@ -72,9 +72,7 @@ const STORAGE_CONFIG = {
  * 当RSS源未配置特定值时使用这些默认值
  */
 const PERFORMANCE_CONFIG = {
-  maxEntriesPerFeed: 20, // 每个RSS源目标新新闻数量（真正通过去重过滤的新闻数）
-  requestTimeout: 30000, // 网络请求超时（毫秒）
-  aiRequestTimeout: 60000 // AI请求超时（毫秒）
+  maxEntriesPerFeed: 20 // 每个RSS源目标新新闻数量（真正通过去重过滤的新闻数）
 };
 
 /**
@@ -127,8 +125,7 @@ const AI_MODEL_CIRCUIT_BREAKER = {};
 const CONTENT_CONFIG = {
   minContentLength: 30, // 最小内容长度阈值，低于此值丢弃不保存
   maxContentLength: 500, // 最大内容长度阈值，超过此值使用AI总结
-  detailPageTimeout: 30000, // 详情页请求超时（毫秒）
-  detailPageEnabled: true, // 是否启用详情页抓取
+  detailPageEnabled: true // 是否启用详情页抓取
 };
 
 /**
@@ -211,10 +208,7 @@ const NewsUtils = {
         }
 
         // 1. 使用通用网络工具获取RSS内容
-        const xmlText = UtilsNetwork.fetchXml(url, {
-          timeout: PERFORMANCE_CONFIG.requestTimeout,
-          maxRedirects: 3
-        });
+        const xmlText = UtilsNetwork.fetchXml(url);
 
         // 2. 解析XML
         const document = XmlService.parse(xmlText);
@@ -401,8 +395,7 @@ const NewsUtils = {
           try {
             const cleanedContent = Utils.cleanHtmlContent(rawContent, {
               keepParagraphs: true,
-              removeImages: true,
-              allowedTags: ['p', 'br', 'strong', 'em']
+              removeImages: true
             });
 
             finalContent = cleanedContent;
@@ -440,17 +433,9 @@ const NewsUtils = {
       }
 
       try {
-
-        // 使用源特定超时或全局配置超时
-        const timeout = (detailPageConfig && detailPageConfig.timeout)
-          ? detailPageConfig.timeout
-          : CONTENT_CONFIG.detailPageTimeout;
-
         const options = {
           muteHttpExceptions: true,
           followRedirects: true,
-          maximumRedirects: 3,
-          timeout: timeout,
           headers: {
             'User-Agent': 'Mozilla/5.0 (compatible; Google-Apps-Script; +https://script.google.com)',
             'Accept': 'text/html,application/xhtml+xml,application/xml;q=0.9,*/*;q=0.8'
@@ -503,7 +488,7 @@ const NewsUtils = {
 
         // 如果所有选择器都失败，尝试整个body内容
         if (!content) {
-          const bodyMatch = html.match(/<body[^>]*>([\\s\\S]*?)<\/body>/i);
+          const bodyMatch = html.match(/<body[^>]*>([\s\S]*?)<\/body>/i);
           if (bodyMatch && bodyMatch[1]) {
             content = bodyMatch[1];
           } else {
@@ -520,8 +505,7 @@ const NewsUtils = {
         // 清理HTML内容
         const cleanedContent = Utils.cleanHtmlContent(contentAfterExclusion, {
           keepParagraphs: true,
-          removeImages: true,
-          allowedTags: ['p', 'br', 'strong', 'em', 'h1', 'h2', 'h3', 'h4']
+          removeImages: true
         });
 
         return cleanedContent;

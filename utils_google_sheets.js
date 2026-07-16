@@ -105,7 +105,7 @@ const UtilsGoogleSheets = {
 
 
   /**
-   * 通过文件名和工作表名读取Google Sheets特定区域的内容
+   * 通过文件名和工作表名读取 Google Sheets 指定工作表上的区域内容
    * @param {string} fileName - 文件名（Google Drive根目录中）
    * @param {string} sheetName - 工作表名称
    * @param {string} rangeA1 - 范围（A1表示法，如"B3:D8"）
@@ -130,11 +130,8 @@ const UtilsGoogleSheets = {
         return null;
       }
 
-      // 读取指定范围的数据
-      const data = this.readSheetData(file, rangeA1);
-      if (data) {
-        Logger.log(`成功读取：${fileName} - ${sheetName} - ${rangeA1}`);
-      }
+      const data = sheet.getRange(rangeA1).getValues();
+      Logger.log(`成功读取：${fileName} - ${sheetName} - ${rangeA1}`);
       return data;
 
     } catch (error) {
@@ -144,8 +141,10 @@ const UtilsGoogleSheets = {
   },
 
   /**
-   * 读取Google Sheets文件中的指定范围数据，支持Google Sheets、CSV文件格式
-   * 对于Excel文件会提示需要手动转换为Google Sheets格式
+   * 读取表格类文件指定范围的数据。
+   * Google Sheets：读取第一个工作表；CSV：按 A1 范围从全文解析子区域。
+   * Excel（.xlsx/.xls）需先手动转为 Google Sheets。
+   * 若需指定工作表名，请使用 readSheetByFileName。
    * @param {File} file - 文件对象（支持Google Sheets、CSV格式）
    * @param {string} rangeA1 - 范围（A1表示法，如"A1:E100"）
    * @return {Array<Array<*>>|null} 二维数组数据或null（读取失败时）
