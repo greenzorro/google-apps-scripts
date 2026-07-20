@@ -78,7 +78,7 @@ function gmailAutoArchive() {
 function gmailAutoTrash() {
   /*
    * Function: gmailAutoTrash
-   * Description: 自动将Gmail所有邮件（All Mail）中1年以上陈旧且未加星标的邮件会话移动到垃圾桶，以释放存储空间。此脚本会检查所有邮件中的一批邮件会话，并删除满足以下两个条件的会话：1. 会话中的最后一封邮件，其接收时间早于1年前。2. 整个会话中没有任何一封邮件被加了星标。请谨慎使用此功能，因为移动到垃圾桶的邮件在30天后会被永久删除。
+   * Description: 自动将 Gmail 所有邮件中超过配置天数且未加星标的邮件会话移动到垃圾桶，以释放存储空间。移动到垃圾桶的邮件会在 Gmail 的保留期后永久删除。
    */
   // --- 1. 配置参数 ---
   // 你可以在这里调整脚本的核心行为
@@ -95,8 +95,7 @@ function gmailAutoTrash() {
   // --- 3. 获取所有邮件会话（All Mail） ---
   // 注意: 此脚本检查所有邮件会话，包括收件箱和已归档的邮件。
   // 使用 search 查询来获取所有邮件（不包括垃圾箱和垃圾邮件）
-  // older_than:365d 表示只匹配1年前或更早的邮件
-  const allThreads = GmailApp.search('-in:trash -in:spam older_than:365d');
+  const allThreads = GmailApp.search(`-in:trash -in:spam older_than:${DELAY_DAYS}d`);
   // 限制处理数量，避免脚本超时
   const threads = allThreads.slice(0, BATCH_SIZE);
 
@@ -108,7 +107,7 @@ function gmailAutoTrash() {
 
   // 使用工具函数记录扫描统计
   Utils.logScanRange("邮件会话", threads.length, {
-    extra: `从 ${allThreads.length} 个1年前的老邮件中选取前 ${BATCH_SIZE} 个进行处理，将要删除"最后消息时间"早于 ${cutoffDate.toLocaleString()} 的邮件会话`
+    extra: `从 ${allThreads.length} 个超过 ${DELAY_DAYS} 天的邮件中选取前 ${BATCH_SIZE} 个进行处理，将要删除"最后消息时间"早于 ${cutoffDate.toLocaleString()} 的邮件会话`
   });
 
   // --- 4. 遍历并处理每一个邮件会话 ---
