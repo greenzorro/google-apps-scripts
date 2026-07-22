@@ -142,13 +142,14 @@ const CONTENT_CONFIG = {
 ```javascript
 const AI_CLASSIFICATION_MODELS = [
   { provider: 'gemini', model: 'gemini-flash-latest' },
+  { provider: 'gemini', model: 'gemini-3.5-flash' },
   { provider: 'gemini', model: 'gemini-3-flash-preview' },
-  { provider: 'gemini', model: 'gemini-2.5-flash' },
   { provider: 'deepseek', model: 'deepseek-v4-flash' }
 ];
 
 const AI_SUMMARIZATION_MODELS = [
   { provider: 'gemini', model: 'gemini-flash-lite-latest' },
+  { provider: 'gemini', model: 'gemini-3.1-flash-lite' },
   { provider: 'gemini', model: 'gemini-2.5-flash-lite' }
 ];
 ```
