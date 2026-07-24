@@ -2,7 +2,7 @@
 
 ## 1. 目的
 
-这是一套自用的 Google Workspace 自动化脚本（日历、Gmail、Drive、Sheets、RSS+AI 等）。**让 Agent 按文末 `# For Agent` 部署到你的 Apps Script 项目**；你这边主要是：确认要开哪些能力、在浏览器里完成 Google 授权、按需把 API Key 填进脚本属性、以及决定要不要开定时触发器。
+这是一套自用的 Google Workspace 自动化脚本（日历、Gmail、Drive、Sheets、RSS+AI 等）。本机到 Apps Script 的部署交给 Agent；你确认要开哪些能力，在浏览器里完成 Google 授权，按需把 API Key 填进脚本属性，并决定要不要开定时触发器。
 
 能力细节见下方清单（改代码时也当作速查；维护约定仍以仓库内其它说明为准）。
 
@@ -486,4 +486,4 @@ clasp open     # opens the Apps Script editor for auth / manual Run
 - Do not rewrite `.clasp.json` `scriptId` onto an arbitrary project
 - Do not store API keys in source files or git
 - Do not enable destructive Drive/Gmail cleanup on production data without an explicit human OK (prefer dry-run first)
-- This README’s long Chinese body is the capability catalog; treat `# For Agent` as the deploy path
+- The Chinese body above is the capability catalog; deploy via the steps in this section
