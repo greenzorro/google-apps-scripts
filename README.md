@@ -456,11 +456,13 @@ Deploy selected scripts from this repo to the bound Google Apps Script project w
    - AI demo: `utils.js` + `utils_ai.js` + `demo_models.js`
    - RSS news feed: `utils.js` + `utils_google_drive.js` + `utils_ai.js` + `utils_network.js` + `news_feed.js` (details in `news_feed.md`)
 2. From the repo root:
-   ```bash
-   clasp login    # if not already logged in — browser consent is a human gate
-   clasp push
-   clasp open     # opens the Apps Script editor for auth / manual Run
-   ```
+
+```bash
+clasp login    # if not already logged in — browser consent is a human gate
+clasp push
+clasp open     # opens the Apps Script editor for auth / manual Run
+```
+
 3. **Single handoff block for the human** (ask once, together):
    - Complete Google OAuth / sensitive-scope prompts
    - In the editor, run `authorizeProject` (from `authorization.js`) or the target entry function once so permissions stick
