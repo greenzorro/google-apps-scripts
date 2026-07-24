@@ -435,6 +435,8 @@ const cerebrasResponse = UtilsAI.askCerebras({
 
 Created by [Victor42](https://victor42.work/) & [Agent Vik](https://github.com/agent-vik)
 
+---
+
 # For Agent
 
 Deploy selected scripts from this repo to the bound Google Apps Script project with `clasp`, then hand authorization and day-to-day trigger/use to the human. Batch human gates; do not turn setup into many back-and-forth rounds.
