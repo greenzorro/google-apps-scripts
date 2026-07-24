@@ -496,3 +496,52 @@ const cerebrasResponse = UtilsAI.askCerebras({
 ---
 
 Created by [Victor42](https://victor42.work/) & [Agent Vik](https://github.com/agent-vik)
+
+# For Agent
+
+Deploy selected scripts from this repo to the bound Google Apps Script project with `clasp`, then hand authorization and day-to-day trigger/use to the human. Batch human gates; do not turn setup into many back-and-forth rounds.
+
+## Prerequisites
+
+- Node.js + `@google/clasp` available (`npm i -g @google/clasp` if needed)
+- A Google account the human can authorize in a browser
+- This repo’s `.clasp.json` already points at the target `scriptId` (do not invent a new script id unless asked)
+
+## Steps
+
+1. Confirm which capability the human wants. Push only the matching file set:
+   - Calendar / Gmail: `utils.js` + `calendar.js` / `gmail.js`
+   - Drive cleanup: `utils.js` + `utils_google_drive.js` + `google_drive.js`
+   - Sheets: `utils.js` + `utils_google_drive.js` + `utils_google_sheets.js` + `google_sheets.js`
+   - AI demo: `utils.js` + `utils_ai.js` + `demo_models.js`
+   - RSS news feed: `utils.js` + `utils_google_drive.js` + `utils_ai.js` + `utils_network.js` + `news_feed.js` (details in `news_feed.md`)
+2. From the repo root:
+   ```bash
+   clasp login    # if not already logged in — browser consent is a human gate
+   clasp push
+   clasp open     # opens the Apps Script editor for auth / manual Run
+   ```
+3. **Single handoff block for the human** (ask once, together):
+   - Complete Google OAuth / sensitive-scope prompts
+   - In the editor, run `authorizeProject` (from `authorization.js`) or the target entry function once so permissions stick
+   - If AI features are needed, set Script Properties only as required: `GEMINI_API_KEY`, `DEEPSEEK_API_KEY`, `GROQ_API_KEY`, `CEREBRAS_API_KEY` (never commit keys)
+4. Entry functions (run in editor or via clasp run if configured):
+   - `monitorCalendarChanges`, `gmailAutoArchive`, `gmailAutoTrash`
+   - `gdriveCleanScreenshots`, `gdriveCleanAiStudio`, `gdriveCleanWechatMpData`, `gdriveCleanNewsFeed`
+   - `mpWechatDataUpdate`, `testAllAIServices`
+   - `processNewsFeedGroup1` … `processNewsFeedGroup4` (see `news_feed.js` / `news_feed.md`)
+5. For schedules: after a successful manual run, guide the human to add time-driven triggers in the Apps Script UI (or equivalent). Prefer dry-run options where Drive cleanup APIs support `dryRun: true` before destructive runs.
+6. Verify via Executions log: no auth errors; expected side effect visible (archived mail, cleaned Drive folder, sheet update, etc.). Then stop—ongoing monitoring is human/trigger-owned.
+
+## Hand off to the human
+
+- Browser Google login, 2FA, and first-time scope approval
+- Script property secrets
+- Trigger enablement and production dry-run vs live cleanup decisions
+
+## Red lines
+
+- Do not rewrite `.clasp.json` `scriptId` onto an arbitrary project
+- Do not store API keys in source files or git
+- Do not enable destructive Drive/Gmail cleanup on production data without an explicit human OK (prefer dry-run first)
+- This README’s long Chinese body is the capability catalog; treat `# For Agent` as the deploy path
