@@ -2,9 +2,9 @@
 
 ## 1. 目的
 
-本文档旨在详细记录 `projects/google-apps-scripts` 目录下的所有Google Apps Script工具，为本项目的未来开发提供便利，核心目的是**复用现有能力，避免重复造轮子**。
+这是一套自用的 Google Workspace 自动化脚本（日历、Gmail、Drive、Sheets、RSS+AI 等）。**让 Agent 按文末 `# For Agent` 部署到你的 Apps Script 项目**；你这边主要是：确认要开哪些能力、在浏览器里完成 Google 授权、按需把 API Key 填进脚本属性、以及决定要不要开定时触发器。
 
-**重要提示：** `google-apps-scripts` 目录工具变更后，请及时更新此备忘录，确保文档的准确性和时效性。
+能力细节见下方清单（改代码时也当作速查；维护约定仍以仓库内其它说明为准）。
 
 ## 2. 功能特性
 
@@ -58,59 +58,6 @@ projects/google-apps-scripts/
 - `demo_models.js` - AI模型调用演示脚本
 - `news_feed.js` - RSS新闻AI过滤系统，从RSS源获取新闻，通过AI模型链分类过滤并保存到Drive（详细文档参见 [news_feed.md](news_feed.md)）
 
-### 部署建议
-
-**模块化部署原则：**
-1. **核心依赖**：`utils.js`是所有业务脚本的必需依赖
-2. **功能模块**：根据业务脚本功能选择对应的工具库
-   - `utils_google_drive.js`：使用Google Drive功能的脚本（如`google_drive.js`、`news_feed.js`）
-   - `utils_google_sheets.js`：使用Google Sheets功能的脚本（如`google_sheets.js`）
-   - `utils_ai.js`：使用AI服务功能的脚本（如`demo_models.js`）
-3. **按需部署**：根据实际需求选择业务脚本
-4. **统一配置**：API密钥存储在Google Apps Script脚本属性中
-
-**部署示例：**
-- **日历/邮件脚本**：只需部署 `utils.js` + `calendar.js`/`gmail.js`
-- **Drive清理脚本**：需部署 `utils.js` + `utils_google_drive.js` + `google_drive.js`
-- **Sheets脚本**：需部署 `utils.js` + `utils_google_drive.js` + `utils_google_sheets.js` + `google_sheets.js`
-- **AI演示脚本**：需部署 `utils.js` + `utils_ai.js` + `demo_models.js`
-- **RSS新闻脚本**：需部署 `utils.js` + `utils_google_drive.js` + `utils_ai.js` + `utils_network.js` + `news_feed.js`
-
-## 4. 使用说明
-
-### 3.1 脚本部署
-1. 打开 [Google Apps Script](https://script.google.com/)
-2. 创建新项目或导入现有脚本
-3. 复制对应脚本代码到编辑器
-4. 配置必要权限
-5. 设置触发器（定时或事件驱动）
-
-### 3.2 API密钥配置
-使用AI服务功能前，需要在脚本属性中配置相应的API密钥：
-
-1. 在Google Apps Script编辑器中，点击左侧齿轮图标（项目设置）
-2. 滚动到"脚本属性"部分
-3. 添加以下属性（根据使用的AI服务选择）：
-   - `GEMINI_API_KEY`: 您的Gemini API密钥
-   - `DEEPSEEK_API_KEY`: 您的Deepseek API密钥
-   - `GROQ_API_KEY`: 您的Groq API密钥
-   - `CEREBRAS_API_KEY`: 您的Cerebras API密钥
-
-**注意：**
-- API密钥存储在脚本属性中，确保安全性
-- 未配置的API密钥会导致相应AI服务调用失败
-- 可以只配置需要使用的AI服务密钥
-
-### 3.3 脚本运行
-```javascript
-// 在Google Apps Script编辑器中运行
-monitorCalendarChanges();     // 日历监控
-gmailAutoArchive();          // 邮件归档
-gdriveCleanAiStudio();           // Drive清理
-```
-
-### 3.4 依赖要求
-所有脚本都依赖 `utils.js` 核心工具函数库，部分脚本还需依赖 `utils_google_drive.js`、`utils_google_sheets.js` 或 `utils_ai.js`，请根据脚本功能确保部署相应文件。
 
 ## 4. 工具清单
 
@@ -442,22 +389,6 @@ const cerebrasResponse = UtilsAI.askCerebras({
 ### 7.2 权限范围
 所有脚本都遵循最小权限原则，只请求完成功能所必需的权限。
 
-## 8. 触发器设置
-
-### 8.1 时间触发器
-```javascript
-// 建议的触发器配置
-// 邮件归档：每天凌晨2点
-// Drive清理：每周日凌晨3点
-// 日历监控：每15分钟一次
-```
-
-### 8.2 事件触发器
-```javascript
-// 可选的事件触发器
-// 日历监控：日历变更事件触发
-// 邮件归档：新邮件到达触发
-```
 
 ## 9. 错误处理
 
@@ -492,6 +423,13 @@ const cerebrasResponse = UtilsAI.askCerebras({
 - 优先在Utils对象中添加新的通用工具函数
 - 保持所有脚本的日志格式一致性
 - 更新此备忘录以反映任何变更
+
+## 使用上你需要关心的事
+
+- **授权**：第一次跑某能力时，在 Apps Script 编辑器里点允许（含敏感权限）。
+- **密钥**：AI 相关能力需要你在「项目设置 → 脚本属性」自行配置 `GEMINI_API_KEY` / `DEEPSEEK_API_KEY` / `GROQ_API_KEY` / `CEREBRAS_API_KEY`（不要写进仓库）。
+- **定时**：需要周期性跑的，在编辑器里加时间触发器；清理类脚本先确认不会误删重要文件。
+- **RSS 新闻**：行为与配置见 [news_feed.md](news_feed.md)。
 
 ---
 
