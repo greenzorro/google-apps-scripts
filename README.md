@@ -128,14 +128,14 @@ projects/google-apps-scripts/
 - **设计模式：** 命名空间封装，避免全局作用域污染
 
 #### Google Sheets操作工具
-- `UtilsGoogleSheets.readSheetData(file, rangeA1)` - 读取表格文件指定范围（Google Sheets 取首表；CSV 按范围解析）
+- `UtilsGoogleSheets.readSheetData(file, rangeA1)` - 读取表格文件指定范围（Google Sheets 取首表；CSV 经 `Utilities.parseCsv` 解析后按 A1 范围切片，支持引号字段内换行/逗号）
 - `UtilsGoogleSheets.readSheetByFileName(fileName, sheetName, rangeA1)` - 通过文件名与工作表名读取指定区域
 - `UtilsGoogleSheets.updateSheetByFileName(fileName, sheetName, rangeA1, data)` - 通过文件名更新Google Sheets数据
 - `UtilsGoogleSheets.clearSheetByFileName(fileName, sheetName, rangeA1)` - 通过文件名清空Google Sheets数据
 - `UtilsGoogleSheets.findTextInColumn(fileName, sheetName, column, searchText)` - 在Google Sheets列中查找文本内容
 - `UtilsGoogleSheets.columnToNumber(column)` - 将列字母转换为列号
 - `UtilsGoogleSheets.numberToColumn(columnNumber)` - 将列号转换为列字母
-- `UtilsGoogleSheets.updateSheetWithAutoRange(fileName, sheetName, targetRangeStart, sourceData)` - 智能更新数据，自动计算并匹配范围
+- `UtilsGoogleSheets.updateSheetWithAutoRange(fileName, sheetName, targetRangeStart, sourceData)` - 智能更新数据：将源数据规整为等宽矩形后，按起始单元格自动计算目标范围并写入
 - `UtilsGoogleSheets.updateSheetByContentMatchOrAppend(targetFileName, targetSheetName, searchColumn, sourceFile, dataRange, headerRows, options)` - 基于内容匹配的批量更新：遍历所有行，找到的更新，未匹配的可选追加（options.appendIfNotFound 控制是否追加，默认true）
 
 ### 4.4 `utils_ai.js` - AI服务工具库
@@ -284,14 +284,14 @@ console.log(`处理了 ${result.processed} 个文件，移动了 ${result.action
 - **支持平台：** Google Sheets
 
 #### 核心功能
-- **📊 智能数据更新**：自动计算数据范围，避免截断问题
+- **📊 智能数据更新**：自动计算数据范围，写入前规整为矩形数组
 - **🔍 内容匹配更新**：基于内容查找定位，智能更新对应行数据
 - **🔄 批量处理**：支持多文件、多工作表的批量数据同步
-- **🤖 自动化流程**：微信公众号数据自动更新完整流程
+- **🤖 自动化流程**：从 Drive `app_data/Backup/mp_wechat` 读取当日 traffic / content / user CSV，写入「微信公众号数据」表格
 - **📝 标准化日志**：使用Utils工具函数进行日志记录
 
 #### 主要函数
-- `mpWechatDataUpdate()` - 微信公众号数据自动更新主函数
+- `mpWechatDataUpdate()` - 微信公众号数据自动更新主函数（缺文件时跳过对应表并记日志；CSV 经 UtilsGoogleSheets 解析，支持「内容标题」等字段内换行）
 
 #### 技术特点
 - **复用工具函数**：充分利用UtilsGoogleSheets.js中的智能更新函数
@@ -304,7 +304,7 @@ console.log(`处理了 ${result.processed} 个文件，移动了 ${result.action
 // 调用微信公众号数据更新
 mpWechatDataUpdate();
 
-// 使用新的智能工具函数
+// 智能范围更新
 const success1 = UtilsGoogleSheets.updateSheetWithAutoRange("目标表格", "工作表名", "A1", data);
 // 批量更新：匹配的更新，未匹配的追加
 const success2 = UtilsGoogleSheets.updateSheetByContentMatchOrAppend("目标表格", "工作表名", "A", sourceFile, "A1:I1000", 1);

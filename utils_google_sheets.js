@@ -142,7 +142,7 @@ const UtilsGoogleSheets = {
 
   /**
    * 读取表格类文件指定范围的数据。
-   * Google Sheets：读取第一个工作表；CSV：按 A1 范围从全文解析子区域。
+   * Google Sheets：读取第一个工作表；CSV：UTF-8 文本经 Utilities.parseCsv 解析后按 A1 范围切片。
    * Excel（.xlsx/.xls）需先手动转为 Google Sheets。
    * 若需指定工作表名，请使用 readSheetByFileName。
    * @param {File} file - 文件对象（支持Google Sheets、CSV格式）
@@ -185,7 +185,8 @@ const UtilsGoogleSheets = {
   },
 
   /**
-   * 读取CSV文件数据并提取指定范围的内容
+   * 读取CSV文件数据并提取指定范围的内容。
+   * 使用 Utilities.parseCsv 解析（支持引号字段内的逗号与换行），再按 A1 范围切片为矩形数组。
    * @param {File} file - CSV文件
    * @param {string} rangeA1 - 范围（A1表示法，如"A1:E100"），用于从CSV文件中提取子范围
    * @return {Array<Array<*>>|null} 二维数组数据或null（读取失败时）
@@ -204,26 +205,30 @@ const UtilsGoogleSheets = {
       const endCol = this.columnToNumber(rangeMatch[3]);
       const endRow = parseInt(rangeMatch[4]);
 
-      // 读取CSV文件内容
-      const csvContent = file.getBlob().getDataAsString();
-      const lines = csvContent.split('\n');
-
-      // 解析CSV数据
-      const allData = [];
-      for (let i = 0; i < lines.length; i++) {
-        const line = lines[i].trim();
-        if (line) {
-          const rowData = line.split(',').map(cell => cell.trim().replace(/^"/, '').replace(/"$/, ''));
-          allData.push(rowData);
-        }
+      // Utilities.parseCsv：按 RFC 语义解析，支持引号字段内的逗号与换行
+      let csvContent = file.getBlob().getDataAsString('UTF-8');
+      if (csvContent.charCodeAt(0) === 0xFEFF) {
+        csvContent = csvContent.slice(1);
       }
+      const parsed = Utilities.parseCsv(csvContent).filter(function(row) {
+        return row.some(function(cell) {
+          return String(cell).trim() !== '';
+        });
+      });
 
-      // 提取指定范围的数据
+      const maxCols = parsed.reduce(function(max, row) {
+        return Math.max(max, row.length);
+      }, 0);
+      const colEnd = Math.min(endCol, maxCols);
+      const width = Math.max(0, colEnd - startCol + 1);
+
+      // 按 A1 范围切片，短行补空串，输出矩形二维数组供 setValues 使用
       const result = [];
-      for (let row = startRow - 1; row < Math.min(endRow, allData.length); row++) {
+      for (let row = startRow - 1; row < Math.min(endRow, parsed.length); row++) {
         const rowData = [];
-        for (let col = startCol - 1; col < Math.min(endCol, allData[row].length); col++) {
-          rowData.push(allData[row][col] || '');
+        for (let offset = 0; offset < width; offset++) {
+          const cell = parsed[row][startCol - 1 + offset];
+          rowData.push(cell === undefined || cell === null ? '' : cell);
         }
         result.push(rowData);
       }
@@ -318,7 +323,8 @@ const UtilsGoogleSheets = {
   },
 
   /**
-   * 智能更新Google Sheets数据，自动计算并匹配数据范围
+   * 智能更新Google Sheets数据，自动计算并匹配数据范围。
+   * 写入前将源数据规整为等宽矩形二维数组。
    * @param {string} fileName - 目标文件名
    * @param {string} sheetName - 目标工作表名称
    * @param {string} targetRangeStart - 目标起始单元格（如"A1"）
@@ -332,13 +338,24 @@ const UtilsGoogleSheets = {
         return true;
       }
 
-      const rows = sourceData.length;
-      const cols = sourceData[0] ? sourceData[0].length : 0;
+      const cols = sourceData.reduce(function(max, row) {
+        return Math.max(max, row ? row.length : 0);
+      }, 0);
 
       if (cols === 0) {
         Logger.log(`错误：源数据列数为0`);
         return false;
       }
+
+      const normalized = sourceData.map(function(row) {
+        const out = [];
+        for (let i = 0; i < cols; i++) {
+          out.push(row && row[i] !== undefined && row[i] !== null ? row[i] : '');
+        }
+        return out;
+      });
+
+      const rows = normalized.length;
 
       // 解析起始单元格
       const startCellMatch = targetRangeStart.match(/([A-Z]+)(\d+)/);
@@ -356,7 +373,7 @@ const UtilsGoogleSheets = {
       const targetRange = `${startColumn}${startRow}:${endColumn}${endRow}`;
 
       // 更新数据
-      const success = this.updateSheetByFileName(fileName, sheetName, targetRange, sourceData);
+      const success = this.updateSheetByFileName(fileName, sheetName, targetRange, normalized);
       if (success) {
         Logger.log(`智能更新成功：${fileName} - ${sheetName} - ${targetRange} (${rows}行 × ${cols}列)`);
       }
