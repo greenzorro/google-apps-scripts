@@ -77,7 +77,7 @@ const PERFORMANCE_CONFIG = {
 
 /**
  * AI分类模型链配置
- * 按顺序尝试Gemini模型和跨服务商兜底模型。
+ * 按顺序尝试 Gemini → Groq(qwen) → DeepSeek。
  */
 const AI_CLASSIFICATION_MODELS = [
   {
@@ -93,6 +93,10 @@ const AI_CLASSIFICATION_MODELS = [
     model: 'gemini-3-flash-preview'
   },
   {
+    provider: 'groq',
+    model: 'qwen/qwen3.6-27b'
+  },
+  {
     provider: 'deepseek',
     model: 'deepseek-v4-flash'
   }
@@ -100,7 +104,7 @@ const AI_CLASSIFICATION_MODELS = [
 
 /**
  * AI总结模型链配置
- * 按顺序尝试轻量总结模型。
+ * Gemini lite → Groq 高吞吐 → Cerebras → DeepSeek 付费兜底。
  */
 const AI_SUMMARIZATION_MODELS = [
   {
@@ -114,6 +118,18 @@ const AI_SUMMARIZATION_MODELS = [
   {
     provider: 'gemini',
     model: 'gemini-2.5-flash-lite'
+  },
+  {
+    provider: 'groq',
+    model: 'llama-3.3-70b-versatile'
+  },
+  {
+    provider: 'cerebras',
+    model: 'gemma-4-31b'
+  },
+  {
+    provider: 'deepseek',
+    model: 'deepseek-v4-flash'
   }
 ];
 
@@ -717,6 +733,19 @@ const NewsUtils = {
           return UtilsAI.askGemini(options);
         }
 
+        if (modelConfig.provider === 'groq') {
+          if (typeof UtilsAI.askGroq !== 'function') {
+            throw new Error('UtilsAI.askGroq 不可用');
+          }
+          // qwen3.6 默认会思考；分类任务关闭推理以省 TPM，并压低输出上限
+          return UtilsAI.askGroq(Object.assign({}, options, {
+            maxTokens: 64,
+            groq: {
+              reasoningEffort: 'none'
+            }
+          }));
+        }
+
         if (modelConfig.provider === 'deepseek') {
           if (typeof UtilsAI.askDeepseek !== 'function') {
             throw new Error('UtilsAI.askDeepseek 不可用');
@@ -801,7 +830,7 @@ const NewsUtils = {
       const aiUtils = this;
 
       // 验证AI工具依赖
-      if (typeof UtilsAI === 'undefined' || typeof UtilsAI.askGemini !== 'function' || typeof UtilsAI.withRetry !== 'function') {
+      if (typeof UtilsAI === 'undefined' || typeof UtilsAI.withRetry !== 'function') {
         Utils.logError(new Error('UtilsAI对象不可用，请确保已部署utils_ai.js文件'), "AI内容总结失败，返回原内容");
         return {
           content: content,
@@ -810,13 +839,39 @@ const NewsUtils = {
       }
 
       const callSummarizationModel = function(modelConfig) {
+        const options = {
+          prompt: prompt,
+          model: modelConfig.model,
+          temperature: 0.2,
+          maxTokens: 512
+        };
+
         if (modelConfig.provider === 'gemini') {
-          return UtilsAI.askGemini({
-            prompt: prompt,
-            model: modelConfig.model,
-            temperature: 0.2,
-            maxTokens: 512
-          });
+          if (typeof UtilsAI.askGemini !== 'function') {
+            throw new Error('UtilsAI.askGemini 不可用');
+          }
+          return UtilsAI.askGemini(options);
+        }
+
+        if (modelConfig.provider === 'groq') {
+          if (typeof UtilsAI.askGroq !== 'function') {
+            throw new Error('UtilsAI.askGroq 不可用');
+          }
+          return UtilsAI.askGroq(options);
+        }
+
+        if (modelConfig.provider === 'cerebras') {
+          if (typeof UtilsAI.askCerebras !== 'function') {
+            throw new Error('UtilsAI.askCerebras 不可用');
+          }
+          return UtilsAI.askCerebras(options);
+        }
+
+        if (modelConfig.provider === 'deepseek') {
+          if (typeof UtilsAI.askDeepseek !== 'function') {
+            throw new Error('UtilsAI.askDeepseek 不可用');
+          }
+          return UtilsAI.askDeepseek(options);
         }
 
         throw new Error(`不支持的AI总结provider: ${modelConfig.provider}`);

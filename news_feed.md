@@ -20,7 +20,7 @@
   - 自动排除体育、军事、娱乐类新闻
   - 政治新闻中排除日本、韩国、台湾相关内容
   - 排除国家公职人员贪污腐败违纪相关处置报道
-- **跨服务商兜底**：分类模型链支持Gemini和DeepSeek，单个模型不可用时自动切换
+- **跨服务商兜底**：分类链 Gemini → Groq(qwen3.6-27b) → DeepSeek；总结链 Gemini lite → Groq(llama-3.3-70b) → Cerebras(gemma-4-31b) → DeepSeek；单个模型不可用时自动切换
 - **运行内熔断**：同一次脚本执行中，429错误会跳过对应模型60秒，502/503/504错误会跳过15秒，401/403错误会停用该模型
 - **快速失败策略**：明确的HTTP错误会跳过当前模型后续重试，避免在不可用模型上消耗执行时间
 
@@ -144,13 +144,17 @@ const AI_CLASSIFICATION_MODELS = [
   { provider: 'gemini', model: 'gemini-flash-latest' },
   { provider: 'gemini', model: 'gemini-3.5-flash' },
   { provider: 'gemini', model: 'gemini-3-flash-preview' },
+  { provider: 'groq', model: 'qwen/qwen3.6-27b' },
   { provider: 'deepseek', model: 'deepseek-v4-flash' }
 ];
 
 const AI_SUMMARIZATION_MODELS = [
   { provider: 'gemini', model: 'gemini-flash-lite-latest' },
   { provider: 'gemini', model: 'gemini-3.1-flash-lite' },
-  { provider: 'gemini', model: 'gemini-2.5-flash-lite' }
+  { provider: 'gemini', model: 'gemini-2.5-flash-lite' },
+  { provider: 'groq', model: 'llama-3.3-70b-versatile' },
+  { provider: 'cerebras', model: 'gemma-4-31b' },
+  { provider: 'deepseek', model: 'deepseek-v4-flash' }
 ];
 ```
 
@@ -158,10 +162,13 @@ const AI_SUMMARIZATION_MODELS = [
 
 - 每个模型最多尝试2次。
 - 分类重试间隔为1秒，总结重试间隔为2秒。
+- 分类链中的 Groq（`qwen/qwen3.6-27b`）固定 `reasoningEffort: 'none'`、`maxTokens: 64`，关闭思考以降低 TPM 消耗。
+- 总结链统一 `temperature: 0.2`、`maxTokens: 512`。
 - `429` 将对应模型临时跳过60秒。
 - `502`、`503`、`504` 将对应模型临时跳过15秒。
 - `401`、`403` 将对应模型在本次脚本执行内停用。
-- 格式错误、空响应等非HTTP可用性错误不触发熔断，允许当前模型按重试策略再尝试。
+- 格式错误、空响应等非 HTTP 可用性错误不触发熔断；当前模型按重试策略用尽后切换下一模型，下一篇新闻仍从模型链头部重试。
+- 脚本属性需配置：`GEMINI_API_KEY`、`GROQ_API_KEY`、`CEREBRAS_API_KEY`、`DEEPSEEK_API_KEY`。
 
 ### AI分类提示词
 AI分类通过if...else逻辑结构实现精确的分类判断：
@@ -187,7 +194,8 @@ const AI_SUMMARIZATION_PROMPT = `请将以下新闻内容总结为不超过400�
 2. 保持逻辑清晰，语句通顺
 3. 不要添加个人观点或评论
 4. 不要使用"记者"、"监制"、"作者"等词汇
-5. 直接输出总结内容，不要任何前缀或解释
+5. 只输出纯文本，避免任何markdown加粗、斜体或其他格式标签
+6. 直接输出总结内容，不要任何前缀或解释
 
 新闻内容如下：`;
 // 实际总结后会在内容前添加"AI总结："标识
@@ -251,9 +259,7 @@ AI总结：
 ### 部署建议
 1. **基础部署**：`utils.js` + `utils_ai.js` + `utils_google_drive.js` + `utils_network.js` + `news_feed.js`
 2. **权限要求**：`https://www.googleapis.com/auth/drive` + `https://www.googleapis.com/auth/script.external_request`
-3. **API密钥配置**：在Google Apps Script编辑器中，通过"项目设置" → "脚本属性"配置以下密钥：
-   - 分类服务密钥：根据使用的AI服务商配置相应密钥名称（用于新闻分类）
-   - 总结服务密钥：根据使用的AI服务商配置相应密钥名称（用于新闻总结）
+3. **API密钥配置**：在Google Apps Script编辑器中，通过"项目设置" → "脚本属性"配置 `GEMINI_API_KEY`、`GROQ_API_KEY`、`CEREBRAS_API_KEY`、`DEEPSEEK_API_KEY`（勿写入仓库）
 4. **触发器设置**：通过Google Apps Script编辑器图形界面配置每日定时执行
 
 ## 🚀 使用方法
