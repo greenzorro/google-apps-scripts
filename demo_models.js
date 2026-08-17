@@ -4,12 +4,12 @@
  * Created: 2025-09-18 03:19:09
  * Author: Victor Cheng
  * Email: hi@victor42.work
- * Description: AI模型调用演示脚本，展示如何使用UtilsAI对象中的AI服务工具函数进行各种AI模型的调用测试（Gemini、Deepseek、Groq、Cerebras）。
+ * Description: AI模型调用演示脚本，展示如何使用UtilsAI对象中的AI服务工具函数进行各种AI模型的调用测试（Gemini、Deepseek、Groq）。
  */
 
 /**
- * 测试所有AI服务（Gemini、Deepseek、Groq、Cerebras）的演示函数
- * 依次调用四个AI服务，显示每个服务的回复内容
+ * 测试所有AI服务（Gemini、Deepseek、Groq）的演示函数
+ * 依次调用三个AI服务，显示每个服务的回复内容
  * 用于验证API密钥配置和AI服务连接性
  */
 function testAllAIServices() {
@@ -39,13 +39,5 @@ function testAllAIServices() {
   });
   Logger.log('Groq AI回复: ' + groqResponse);
 
-  Logger.log('--- 测试 Cerebras API ---');
-  const cerebrasResponse = UtilsAI.askCerebras({
-    prompt: '你好，请用一句话介绍你自己。',
-    model: 'gemma-4-31b',
-    maxTokens: 128
-  });
-  Logger.log('Cerebras AI回复: ' + cerebrasResponse);
-
-  Utils.logEnd("AI模型测试", { count: 4, message: "已完成所有AI服务的测试调用" });
+  Utils.logEnd("AI模型测试", { count: 3, message: "已完成所有AI服务的测试调用" });
 }

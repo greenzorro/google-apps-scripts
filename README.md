@@ -147,12 +147,11 @@ projects/google-apps-scripts/
 - `UtilsAI.askGemini(options)` - 使用对象参数调用Gemini，支持 `prompt` / `messages` / `model` / `temperature` / `maxTokens` 等配置
 - `UtilsAI.askDeepseek(options)` - 使用对象参数调用DeepSeek，支持通用生成参数与 `deepseek.thinking` 等专有配置
 - `UtilsAI.askGroq(options)` - 使用对象参数调用Groq，支持通用生成参数与 `groq.reasoningEffort` 等专有配置
-- `UtilsAI.askCerebras(options)` - 使用对象参数调用Cerebras，支持通用生成参数与 `cerebras.reasoningEffort` 等专有配置
 
 #### 设计特点
 - **统一参数接口**：所有AI服务均使用对象参数，支持`prompt`、`messages`、`systemPrompt`等通用字段
 - **可控重试**：`withRetry()`支持最大尝试次数、重试间隔和按错误类型停止当前重试链
-- **多服务商支持**：Gemini、DeepSeek、Groq、Cerebras共用工具层，业务脚本可按模型链组合使用
+- **多服务商支持**：Gemini、DeepSeek、Groq共用工具层，业务脚本可按模型链组合使用
 - **错误透传**：API错误包含服务商、HTTP状态码和响应摘要，便于业务层进行模型切换和熔断
 
 ### 4.5 `utils_network.js` - 网络请求工具库
@@ -343,11 +342,6 @@ const groqResponse = UtilsAI.askGroq({
   model: 'openai/gpt-oss-120b',
   maxTokens: 128
 });
-const cerebrasResponse = UtilsAI.askCerebras({
-  prompt: '你好，请用一句话介绍你自己。',
-  model: 'gemma-4-31b',
-  maxTokens: 128
-});
 ```
 
 ## 5. 使用场景
@@ -427,7 +421,7 @@ const cerebrasResponse = UtilsAI.askCerebras({
 ## 使用上你需要关心的事
 
 - **授权**：第一次跑某能力时，在 Apps Script 编辑器里点允许（含敏感权限）。
-- **密钥**：AI 相关能力需要你在「项目设置 → 脚本属性」自行配置 `GEMINI_API_KEY` / `DEEPSEEK_API_KEY` / `GROQ_API_KEY` / `CEREBRAS_API_KEY`（不要写进仓库）。
+- **密钥**：AI 相关能力需要你在「项目设置 → 脚本属性」自行配置 `GEMINI_API_KEY` / `DEEPSEEK_API_KEY` / `GROQ_API_KEY`（不要写进仓库）。
 - **定时**：需要周期性跑的，在编辑器里加时间触发器；清理类脚本先确认不会误删重要文件。
 - **RSS 新闻**：行为与配置见 [news_feed.md](news_feed.md)。
 
@@ -466,7 +460,7 @@ clasp open     # opens the Apps Script editor for auth / manual Run
 3. **Single handoff block for the human** (ask once, together):
    - Complete Google OAuth / sensitive-scope prompts
    - In the editor, run `authorizeProject` (from `authorization.js`) or the target entry function once so permissions stick
-   - If AI features are needed, set Script Properties only as required: `GEMINI_API_KEY`, `DEEPSEEK_API_KEY`, `GROQ_API_KEY`, `CEREBRAS_API_KEY` (never commit keys)
+   - If AI features are needed, set Script Properties only as required: `GEMINI_API_KEY`, `DEEPSEEK_API_KEY`, `GROQ_API_KEY` (never commit keys)
 4. Entry functions (run in editor or via clasp run if configured):
    - `monitorCalendarChanges`, `gmailAutoArchive`, `gmailAutoTrash`
    - `gdriveCleanScreenshots`, `gdriveCleanAiStudio`, `gdriveCleanWechatMpData`, `gdriveCleanNewsFeed`

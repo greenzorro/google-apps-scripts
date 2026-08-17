@@ -86,11 +86,11 @@ const AI_CLASSIFICATION_MODELS = [
   },
   {
     provider: 'gemini',
-    model: 'gemini-3.5-flash'
+    model: 'gemini-3.6-flash'
   },
   {
     provider: 'gemini',
-    model: 'gemini-3-flash-preview'
+    model: 'gemini-3.5-flash'
   },
   {
     provider: 'groq',
@@ -104,7 +104,7 @@ const AI_CLASSIFICATION_MODELS = [
 
 /**
  * AI总结模型链配置
- * Gemini lite → Groq 高吞吐 → Cerebras → DeepSeek 付费兜底。
+ * Gemini lite → Groq 高吞吐 → DeepSeek 付费兜底。
  */
 const AI_SUMMARIZATION_MODELS = [
   {
@@ -122,10 +122,6 @@ const AI_SUMMARIZATION_MODELS = [
   {
     provider: 'groq',
     model: 'llama-3.3-70b-versatile'
-  },
-  {
-    provider: 'cerebras',
-    model: 'gemma-4-31b'
   },
   {
     provider: 'deepseek',
@@ -858,13 +854,6 @@ const NewsUtils = {
             throw new Error('UtilsAI.askGroq 不可用');
           }
           return UtilsAI.askGroq(options);
-        }
-
-        if (modelConfig.provider === 'cerebras') {
-          if (typeof UtilsAI.askCerebras !== 'function') {
-            throw new Error('UtilsAI.askCerebras 不可用');
-          }
-          return UtilsAI.askCerebras(options);
         }
 
         if (modelConfig.provider === 'deepseek') {

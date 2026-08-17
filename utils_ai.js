@@ -4,7 +4,7 @@
  * Created: 2025-12-09
  * Author: Victor Cheng
  * Email: hi@victor42.work
- * Description: AI服务工具函数库，提供多模型AI服务调用功能（Gemini、Deepseek、Groq、Cerebras）。
+ * Description: AI服务工具函数库，提供多模型AI服务调用功能（Gemini、Deepseek、Groq）。
  */
 
 /**
@@ -557,82 +557,6 @@ const UtilsAI = {
         }
       } else {
         throw this.buildApiError('Groq', response, responseText);
-      }
-    } catch (error) {
-      throw new Error(`请求失败: ${error.message}`);
-    }
-  },
-
-  /**
-   * 向Cerebras API发送请求并获取AI回复
-   * @param {Object} options - 调用参数
-   * @returns {string} AI的回复内容
-   */
-  askCerebras: function(options) {
-    const scriptProperties = PropertiesService.getScriptProperties();
-    const apiKey = scriptProperties.getProperty('CEREBRAS_API_KEY');
-    const config = this.normalizeOptions(options, 'cerebras', {
-      model: 'gemma-4-31b',
-      temperature: 0.7,
-      maxTokens: 8192,
-      topP: 0.95
-    });
-
-    if (!apiKey) {
-      throw new Error('未配置 CEREBRAS_API_KEY');
-    }
-
-    this.sleepIfNeeded(config.delaySeconds);
-
-    const url = 'https://api.cerebras.ai/v1/chat/completions';
-    const messages = this.buildOpenAIMessages(config);
-
-    const requestData = this.pickDefined({
-      model: config.model,
-      messages: messages,
-      max_completion_tokens: config.maxTokens,
-      temperature: config.temperature,
-      top_p: config.topP,
-      stop: config.stop,
-      seed: config.seed,
-      frequency_penalty: config.frequencyPenalty,
-      presence_penalty: config.presencePenalty,
-      response_format: typeof config.responseFormat === 'string'
-        ? { type: config.responseFormat }
-        : config.responseFormat,
-      reasoning_effort: config.cerebras.reasoningEffort,
-      prompt_cache_key: config.cerebras.promptCacheKey,
-      service_tier: config.cerebras.serviceTier,
-      stream: false
-    });
-
-    const fetchOptions = {
-      'method': 'post',
-      'contentType': 'application/json',
-      'headers': {
-        'Authorization': 'Bearer ' + apiKey,
-        'User-Agent': 'GoogleAppsScript/CerebrasSDK'
-      },
-      'payload': JSON.stringify(requestData),
-      'muteHttpExceptions': true
-    };
-
-    try {
-      const { response, responseData, responseText } = this.fetchJson(url, fetchOptions);
-
-      if (response.getResponseCode() === 200) {
-        const reply = responseData.choices &&
-                     responseData.choices[0] &&
-                     responseData.choices[0].message &&
-                     responseData.choices[0].message.content;
-
-        if (reply) {
-          return reply;
-        } else {
-          throw new Error('无法从API响应中提取回复内容');
-        }
-      } else {
-        throw this.buildApiError('Cerebras', response, responseText);
       }
     } catch (error) {
       throw new Error(`请求失败: ${error.message}`);

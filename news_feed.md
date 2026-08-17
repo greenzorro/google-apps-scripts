@@ -20,7 +20,7 @@
   - 自动排除体育、军事、娱乐类新闻
   - 政治新闻中排除日本、韩国、台湾相关内容
   - 排除国家公职人员贪污腐败违纪相关处置报道
-- **跨服务商兜底**：分类链 Gemini → Groq(qwen3.6-27b) → DeepSeek；总结链 Gemini lite → Groq(llama-3.3-70b) → Cerebras(gemma-4-31b) → DeepSeek；单个模型不可用时自动切换
+- **跨服务商兜底**：分类链 Gemini → Groq(qwen3.6-27b) → DeepSeek；总结链 Gemini lite → Groq(llama-3.3-70b) → DeepSeek；单个模型不可用时自动切换
 - **运行内熔断**：同一次脚本执行中，429错误会跳过对应模型60秒，502/503/504错误会跳过15秒，401/403错误会停用该模型
 - **快速失败策略**：明确的HTTP错误会跳过当前模型后续重试，避免在不可用模型上消耗执行时间
 
@@ -142,8 +142,8 @@ const CONTENT_CONFIG = {
 ```javascript
 const AI_CLASSIFICATION_MODELS = [
   { provider: 'gemini', model: 'gemini-flash-latest' },
+  { provider: 'gemini', model: 'gemini-3.6-flash' },
   { provider: 'gemini', model: 'gemini-3.5-flash' },
-  { provider: 'gemini', model: 'gemini-3-flash-preview' },
   { provider: 'groq', model: 'qwen/qwen3.6-27b' },
   { provider: 'deepseek', model: 'deepseek-v4-flash' }
 ];
@@ -153,7 +153,6 @@ const AI_SUMMARIZATION_MODELS = [
   { provider: 'gemini', model: 'gemini-3.1-flash-lite' },
   { provider: 'gemini', model: 'gemini-2.5-flash-lite' },
   { provider: 'groq', model: 'llama-3.3-70b-versatile' },
-  { provider: 'cerebras', model: 'gemma-4-31b' },
   { provider: 'deepseek', model: 'deepseek-v4-flash' }
 ];
 ```
@@ -168,7 +167,7 @@ const AI_SUMMARIZATION_MODELS = [
 - `502`、`503`、`504` 将对应模型临时跳过15秒。
 - `401`、`403` 将对应模型在本次脚本执行内停用。
 - 格式错误、空响应等非 HTTP 可用性错误不触发熔断；当前模型按重试策略用尽后切换下一模型，下一篇新闻仍从模型链头部重试。
-- 脚本属性需配置：`GEMINI_API_KEY`、`GROQ_API_KEY`、`CEREBRAS_API_KEY`、`DEEPSEEK_API_KEY`。
+- 脚本属性需配置：`GEMINI_API_KEY`、`GROQ_API_KEY`、`DEEPSEEK_API_KEY`。
 
 ### AI分类提示词
 AI分类通过if...else逻辑结构实现精确的分类判断：
@@ -259,7 +258,7 @@ AI总结：
 ### 部署建议
 1. **基础部署**：`utils.js` + `utils_ai.js` + `utils_google_drive.js` + `utils_network.js` + `news_feed.js`
 2. **权限要求**：`https://www.googleapis.com/auth/drive` + `https://www.googleapis.com/auth/script.external_request`
-3. **API密钥配置**：在Google Apps Script编辑器中，通过"项目设置" → "脚本属性"配置 `GEMINI_API_KEY`、`GROQ_API_KEY`、`CEREBRAS_API_KEY`、`DEEPSEEK_API_KEY`（勿写入仓库）
+3. **API密钥配置**：在Google Apps Script编辑器中，通过"项目设置" → "脚本属性"配置 `GEMINI_API_KEY`、`GROQ_API_KEY`、`DEEPSEEK_API_KEY`（勿写入仓库）
 4. **触发器设置**：通过Google Apps Script编辑器图形界面配置每日定时执行
 
 ## 🚀 使用方法
