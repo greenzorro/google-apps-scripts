@@ -94,7 +94,7 @@ const AI_CLASSIFICATION_MODELS = [
   },
   {
     provider: 'groq',
-    model: 'qwen/qwen3.6-27b'
+    model: 'qwen/qwen3.8-27b'
   },
   {
     provider: 'deepseek',
@@ -733,7 +733,7 @@ const NewsUtils = {
           if (typeof UtilsAI.askGroq !== 'function') {
             throw new Error('UtilsAI.askGroq 不可用');
           }
-          // qwen3.6 默认会思考；分类任务关闭推理以省 TPM，并压低输出上限
+          // qwen3.8 默认会思考；分类任务关闭推理以省 TPM，并压低输出上限
           return UtilsAI.askGroq(Object.assign({}, options, {
             maxTokens: 64,
             groq: {

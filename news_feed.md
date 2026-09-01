@@ -20,7 +20,7 @@
   - 自动排除体育、军事、娱乐类新闻
   - 政治新闻中排除日本、韩国、台湾相关内容
   - 排除国家公职人员贪污腐败违纪相关处置报道
-- **跨服务商兜底**：分类链 Gemini → Groq(qwen3.6-27b) → DeepSeek；总结链 Gemini lite → Groq(llama-3.3-70b) → DeepSeek；单个模型不可用时自动切换
+- **跨服务商兜底**：分类链 Gemini → Groq(qwen3.8-27b) → DeepSeek；总结链 Gemini lite → Groq(llama-3.3-70b) → DeepSeek；单个模型不可用时自动切换
 - **运行内熔断**：同一次脚本执行中，429错误会跳过对应模型60秒，502/503/504错误会跳过15秒，401/403错误会停用该模型
 - **快速失败策略**：明确的HTTP错误会跳过当前模型后续重试，避免在不可用模型上消耗执行时间
 
@@ -144,7 +144,7 @@ const AI_CLASSIFICATION_MODELS = [
   { provider: 'gemini', model: 'gemini-flash-latest' },
   { provider: 'gemini', model: 'gemini-3.6-flash' },
   { provider: 'gemini', model: 'gemini-3.5-flash' },
-  { provider: 'groq', model: 'qwen/qwen3.6-27b' },
+  { provider: 'groq', model: 'qwen/qwen3.8-27b' },
   { provider: 'deepseek', model: 'deepseek-v4-flash' }
 ];
 
@@ -161,7 +161,7 @@ const AI_SUMMARIZATION_MODELS = [
 
 - 每个模型最多尝试2次。
 - 分类重试间隔为1秒，总结重试间隔为2秒。
-- 分类链中的 Groq（`qwen/qwen3.6-27b`）固定 `reasoningEffort: 'none'`、`maxTokens: 64`，关闭思考以降低 TPM 消耗。
+- 分类链中的 Groq（`qwen/qwen3.8-27b`）固定 `reasoningEffort: 'none'`、`maxTokens: 64`，关闭思考以降低 TPM 消耗。
 - 总结链统一 `temperature: 0.2`、`maxTokens: 512`。
 - `429` 将对应模型临时跳过60秒。
 - `502`、`503`、`504` 将对应模型临时跳过15秒。
