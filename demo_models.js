@@ -26,7 +26,7 @@ function testAllAIServices() {
   Logger.log('--- 测试 Deepseek API ---');
   const deepseekResponse = UtilsAI.askDeepseek({
     prompt: '你好，请用一句话介绍你自己。',
-    model: 'deepseek-v4-flash',
+    model: 'deepseek-flash',
     maxTokens: 128
   });
   Logger.log('Deepseek AI回复: ' + deepseekResponse);

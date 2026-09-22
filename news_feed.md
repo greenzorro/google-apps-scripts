@@ -142,10 +142,10 @@ const CONTENT_CONFIG = {
 ```javascript
 const AI_CLASSIFICATION_MODELS = [
   { provider: 'gemini', model: 'gemini-flash-latest' },
+  { provider: 'gemini', model: 'gemini-3.7-flash' },
   { provider: 'gemini', model: 'gemini-3.6-flash' },
-  { provider: 'gemini', model: 'gemini-3.5-flash' },
   { provider: 'groq', model: 'qwen/qwen3.8-27b' },
-  { provider: 'deepseek', model: 'deepseek-v4-flash' }
+  { provider: 'deepseek', model: 'deepseek-flash' }
 ];
 
 const AI_SUMMARIZATION_MODELS = [
@@ -153,7 +153,7 @@ const AI_SUMMARIZATION_MODELS = [
   { provider: 'gemini', model: 'gemini-3.1-flash-lite' },
   { provider: 'gemini', model: 'gemini-2.5-flash-lite' },
   { provider: 'groq', model: 'llama-3.3-70b-versatile' },
-  { provider: 'deepseek', model: 'deepseek-v4-flash' }
+  { provider: 'deepseek', model: 'deepseek-flash' }
 ];
 ```
 

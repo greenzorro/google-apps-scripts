@@ -86,11 +86,11 @@ const AI_CLASSIFICATION_MODELS = [
   },
   {
     provider: 'gemini',
-    model: 'gemini-3.6-flash'
+    model: 'gemini-3.7-flash'
   },
   {
     provider: 'gemini',
-    model: 'gemini-3.5-flash'
+    model: 'gemini-3.6-flash'
   },
   {
     provider: 'groq',
@@ -98,7 +98,7 @@ const AI_CLASSIFICATION_MODELS = [
   },
   {
     provider: 'deepseek',
-    model: 'deepseek-v4-flash'
+    model: 'deepseek-flash'
   }
 ];
 
@@ -125,7 +125,7 @@ const AI_SUMMARIZATION_MODELS = [
   },
   {
     provider: 'deepseek',
-    model: 'deepseek-v4-flash'
+    model: 'deepseek-flash'
   }
 ];
 

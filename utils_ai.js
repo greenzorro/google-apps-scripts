@@ -424,7 +424,7 @@ const UtilsAI = {
     const scriptProperties = PropertiesService.getScriptProperties();
     const apiKey = scriptProperties.getProperty('DEEPSEEK_API_KEY');
     const config = this.normalizeOptions(options, 'deepseek', {
-      model: 'deepseek-v4-flash',
+      model: 'deepseek-flash',
       temperature: 0.7,
       maxTokens: 8192,
       topP: 1

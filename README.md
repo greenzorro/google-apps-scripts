@@ -334,7 +334,7 @@ const geminiResponse = UtilsAI.askGemini({
 });
 const deepseekResponse = UtilsAI.askDeepseek({
   prompt: '你好，请用一句话介绍你自己。',
-  model: 'deepseek-v4-flash',
+  model: 'deepseek-flash',
   maxTokens: 128
 });
 const groqResponse = UtilsAI.askGroq({
