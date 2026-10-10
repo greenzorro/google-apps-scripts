@@ -20,7 +20,7 @@
   - 自动排除体育、军事、娱乐类新闻
   - 政治新闻中排除日本、韩国、台湾相关内容
   - 排除国家公职人员贪污腐败违纪相关处置报道
-- **跨服务商兜底**：分类链 Gemini → Groq(qwen3.8-27b) → DeepSeek；总结链 Gemini lite → Groq(llama-3.3-70b) → DeepSeek；单个模型不可用时自动切换
+- **跨服务商兜底**：分类链 Gemini → Groq(qwen3.8-27b) → DeepSeek；总结链 Gemini lite → Groq(gpt-oss-120b) → DeepSeek；单个模型不可用时自动切换
 - **运行内熔断**：同一次脚本执行中，429错误会跳过对应模型60秒，502/503/504错误会跳过15秒，401/403错误会停用该模型
 - **快速失败策略**：明确的HTTP错误会跳过当前模型后续重试，避免在不可用模型上消耗执行时间
 
@@ -152,7 +152,7 @@ const AI_SUMMARIZATION_MODELS = [
   { provider: 'gemini', model: 'gemini-flash-lite-latest' },
   { provider: 'gemini', model: 'gemini-3.1-flash-lite' },
   { provider: 'gemini', model: 'gemini-2.5-flash-lite' },
-  { provider: 'groq', model: 'llama-3.3-70b-versatile' },
+  { provider: 'groq', model: 'openai/gpt-oss-120b' },
   { provider: 'deepseek', model: 'deepseek-flash' }
 ];
 ```

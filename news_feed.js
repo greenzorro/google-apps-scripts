@@ -121,7 +121,7 @@ const AI_SUMMARIZATION_MODELS = [
   },
   {
     provider: 'groq',
-    model: 'llama-3.3-70b-versatile'
+    model: 'openai/gpt-oss-120b'
   },
   {
     provider: 'deepseek',
