@@ -85,14 +85,6 @@ const AI_CLASSIFICATION_MODELS = [
     model: 'gemini-flash-latest'
   },
   {
-    provider: 'gemini',
-    model: 'gemini-3.7-flash'
-  },
-  {
-    provider: 'gemini',
-    model: 'gemini-3.6-flash'
-  },
-  {
     provider: 'groq',
     model: 'qwen/qwen3.8-27b'
   },
@@ -110,14 +102,6 @@ const AI_SUMMARIZATION_MODELS = [
   {
     provider: 'gemini',
     model: 'gemini-flash-lite-latest'
-  },
-  {
-    provider: 'gemini',
-    model: 'gemini-3.1-flash-lite'
-  },
-  {
-    provider: 'gemini',
-    model: 'gemini-2.5-flash-lite'
   },
   {
     provider: 'groq',
