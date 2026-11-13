@@ -77,9 +77,13 @@ const PERFORMANCE_CONFIG = {
 
 /**
  * AI分类模型链配置
- * 按顺序尝试 Gemini → Groq(qwen) → DeepSeek。
+ * 按顺序尝试 Gemini(4-hydrogen) → Gemini(flash) → Groq(qwen) → DeepSeek。
  */
 const AI_CLASSIFICATION_MODELS = [
+  {
+    provider: 'gemini',
+    model: 'gemini-4-hydrogen'
+  },
   {
     provider: 'gemini',
     model: 'gemini-flash-latest'
