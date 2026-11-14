@@ -4,7 +4,7 @@
 
 基于Google Apps Scripts工具集实现的自动化新闻收集系统，从RSS源获取新闻、通过AI根据标题进行分类过滤，并保存到Google Drive。
 
-本系统起源于这个[Tasker程序](https://victor42.eth.limo/post/3652/)，用Google Apps Scripts重新实现了，在其基础上做了升级和扩展，功能更加强大。
+本系统是[这个Tasker程序](https://victor42.eth.limo/post/3652/)的 Google Apps Scripts 重实现，功能范围比原版更完整。
 
 ## 🚀 核心功能
 
@@ -14,13 +14,14 @@
 - **分组处理**：支持多个入口函数错峰处理新闻源，可独立配置每个源的目标新新闻数量
 
 ### AI智能分类与总结
-- **模型链架构**：分类和总结分别配置模型链，按顺序尝试可用模型
+- **两套模型链**：分类兜底与总结各有一条模型链，按顺序尝试可用模型
+- **两层分类**：`mode: 'primary'` 时先走闭合集判断（`gemini-decision-1` 一次请求同时判定分类与保存标记，不生成文本、输出 token 为 0），调用失败或模型不可用时自动落到生成式模型链；`mode: 'off'` 时只走生成链
 - **多类别识别**：识别政治、财经、军事、科技、社会、娱乐、体育、天气、其他等9类新闻
 - **精确过滤规则**：
   - 自动排除体育、军事、娱乐类新闻
   - 政治新闻中排除日本、韩国、台湾相关内容
   - 排除国家公职人员贪污腐败违纪相关处置报道
-- **跨服务商兜底**：分类链 Gemini(4-hydrogen) → Gemini(flash) → Groq(qwen3.8-27b) → DeepSeek；总结链 Gemini lite → Groq(gpt-oss-120b) → DeepSeek；单个模型不可用时自动切换
+- **跨服务商兜底**：分类兜底链 Gemini(4-hydrogen) → Gemini(flash) → Groq(qwen3.8-27b) → DeepSeek；总结链 Gemini lite → Groq(gpt-oss-120b) → DeepSeek；单个模型不可用时自动切换
 - **运行内熔断**：同一次脚本执行中，429错误会跳过对应模型60秒，502/503/504错误会跳过15秒，401/403错误会停用该模型
 - **快速失败策略**：明确的HTTP错误会跳过当前模型后续重试，避免在不可用模型上消耗执行时间
 
@@ -67,7 +68,7 @@
 |------|---------|----------|
 | **NewsUtils.RSS** | RSS处理模块 | `fetchAndParse()`, `parseRSS()`, `parseAtom()`, `getElementText()`, `getLink()` |
 | **NewsUtils.Content** | 内容提取模块 | `extractNewsContent()`, `fetchDetailPageContent()`, `cleanFooterContent()`, `getContentSourceName()` |
-| **NewsUtils.AI** | AI模块 | `classifyNewsByTitle()`, `summarizeContent()`, `cleanThinkingTags()` |
+| **NewsUtils.AI** | AI模块 | `classifyNewsByTitle()`, `classifyByDecision()`, `classifyByGenerationChain()`, `summarizeContent()`, `cleanThinkingTags()` |
 | **NewsUtils.Storage** | 存储管理模块 | `createNewsDateFolder()`, `formatNewsContent()`, `saveNewsToDrive()` |
 
 ## ⚙️ 配置说明
@@ -136,8 +137,20 @@ const CONTENT_CONFIG = {
 };
 ```
 
+### AI分类 decision 层配置
+`classifyNewsByTitle()` 先调 `classifyByDecision()`，返回 null 时才走生成链。
+
+```javascript
+const AI_DECISION_CONFIG = {
+  mode: 'off', // 'off' | 'primary'
+  model: 'gemini-decision-1'
+};
+```
+
+decision 层把 `AI_CLASSIFICATION_PROMPT` 整段作为共享 `input`，另问两个 `choice`：`category`（候选为 9 个类别，取自 `AI_CATEGORY_CRITERIA`）与 `save`（候选 `0`/`1`）。取 `answers.save.choice` 与 `answers.category.choice` 作为结论，`answers.save.confidence` 仅记录到日志。
+
 ### AI模型链配置
-分类和总结分别使用独立模型链。
+分类兜底链和总结链分别使用独立模型链。
 
 ```javascript
 const AI_CLASSIFICATION_MODELS = [
@@ -156,7 +169,9 @@ const AI_SUMMARIZATION_MODELS = [
 
 模型调用策略：
 
-- 每个模型最多尝试2次。
+- decision 层请求失败时按状态码处置：`400`/`404` 视为本次执行内不可用，直接停用；`429` 跳过60秒；`502`/`503`/`504` 跳过15秒；`401`/`403` 本次执行内停用；无状态码的偶发错误重试1次后落到生成链。
+- decision 层成功即采用其结论，不再调用生成链。
+- 生成链中每个模型最多尝试2次。
 - 分类重试间隔为1秒，总结重试间隔为2秒。
 - 分类链中的 Gemini、DeepSeek 不单独传参，沿用 `UtilsAI.askGemini` / `askDeepseek` 的默认值（`temperature: 0.7`、`maxTokens: 8192`）。
 - 分类链中的 Groq（`qwen/qwen3.8-27b`）固定 `reasoningEffort: 'none'`、`maxTokens: 64`，关闭思考以降低 TPM 消耗。
@@ -301,7 +316,7 @@ AI总结：
 // 这样可以：
 // 1. 分散AI API调用，降低单次执行压力
 // 2. 确保在6分钟时限内完成
-// 3. 通过模型链和运行内熔断提升AI调用稳定性
+// 3. 通过 decision 层、模型链和运行内熔断提升 AI 调用稳定性
 // 4. 真正实现"处理N条全新新闻"，通过去重机制避免重复处理
 ```
 
@@ -328,7 +343,7 @@ processNewsFeedGroup4();  // 只处理组4
 - **分组处理**：系统提供主函数 processNewsFeedsByGroup() 和多个入口函数 processNewsFeedGroupN()，每个入口函数处理部分RSS源，避免单次执行时间过长
 - **条目限制**：每个RSS源默认目标处理20个新新闻（真正通过去重过滤的新闻数，可独立配置）
 - **错峰执行**：通过配置不同的触发时间，分散AI API调用
-- **模型链调用**：分类和总结分别按模型链尝试，单个模型不可用时自动切换
+- **模型链调用**：分类先走 decision 层（单次请求，不生成文本），失败或不可用时落到生成链；总结按生成链尝试，单个模型不可用时自动切换
 - **运行内熔断**：短时间内跳过出现429、502、503、504等错误的模型，避免多条新闻重复撞同一不可用模型
 - **错误跳过**：所有错误类型均跳过当前条目，继续执行后续流程
 - **去重机制**：在获取阶段检查已有文件，只处理真正全新的新闻，节省AI API调用
@@ -351,7 +366,7 @@ processNewsFeedGroup4();  // 只处理组4
 |----------|---------|----------|
 | **网络错误** | 单个RSS源 | 跳过当前源，记录错误，继续处理其他源 |
 | **解析错误** | 单个RSS源 | 跳过当前源，记录错误，继续处理其他源 |
-| **AI API错误** | 单个新闻条目或单个模型 | 切换模型或跳过当前新闻，记录错误，继续处理其他新闻 |
+| **AI API错误** | 单个新闻条目、decision 层或单个模型 | decision 层失败自动降级到生成链；生成链内切换模型；全部失败则跳过当前新闻，记录错误，继续处理其他新闻 |
 | **保存错误** | 单个新闻条目 | 跳过当前新闻，记录错误，继续处理其他新闻 |
 | **权限错误** | 整个脚本 | 停止执行，记录详细错误信息 |
 
@@ -380,7 +395,7 @@ processNewsFeedGroup4();  // 只处理组4
 |----------|---------|----------|
 | **脚本执行超时** | 处理新闻条目过多或分组不均衡 | 减少`maxEntriesPerFeed`配置值（目标新新闻数），调整`processGroups`分配 |
 | **RSS源未被处理** | `processGroups`配置错误或触发器未配置 | 检查RSS源的`processGroups`数组值，确认触发器配置正确 |
-| **AI服务异常** | 网络问题、服务不可用或配额限制 | 检查模型链日志、服务状态和API配额 |
+| **AI服务异常** | 网络问题、服务不可用或配额限制 | 检查 decision 层与模型链日志、服务状态和API配额 |
 | **文件保存失败** | Google Drive权限不足 | 检查脚本的Drive API权限配置 |
 | **RSS获取失败** | RSS源URL变更或网络问题 | 验证RSS源URL有效性，检查网络连接 |
 | **内容提取为空** | RSS格式变更或详情页结构变化 | 更新详情页选择器配置 |
@@ -403,6 +418,12 @@ processNewsFeedGroup4();  // 只处理组4
 3. 修改过滤条件和输出格式
 4. 测试分类准确性和过滤效果
 
+### 调整分类 decision 层
+1. 修改`AI_DECISION_CONFIG.mode`在 `off` 与 `primary` 之间切换
+2. 修改`AI_DECISION_CONFIG.model`更换 decision 模型
+3. 修改`AI_CATEGORY_CRITERIA`调整分类候选项的描述
+4. 检查执行日志中的`decidedBy`与`confidence`，确认实际走的是哪条路径
+
 ### 调整AI模型链
 1. 修改`AI_CLASSIFICATION_MODELS`调整分类模型顺序
 2. 修改`AI_SUMMARIZATION_MODELS`调整总结模型顺序
@@ -423,12 +444,10 @@ processNewsFeedGroup4();  // 只处理组4
 
 ## ✅ 质量保证
 
-### 测试覆盖
-- **单元测试**：各模块功能的独立测试
-- **集成测试**：端到端流程测试
-- **边界测试**：异常情况和边界条件测试
-- **性能测试**：执行时间和资源消耗测试
-- **AI功能测试**：验证AI处理功能的准确性和稳定性
+### 验证方式
+- **执行日志**：以一次分组入口函数的运行日志为验收依据，关注`decidedBy`（走的是 decision 层还是生成链）、`AI分类结果`与保存/跳过统计
+- **落盘抽查**：核对`app_data/news_feed/text`下新增文件的来源、分类与正文是否与执行日志一致
+- **仓库内无自动化测试套件**：本仓库不包含单元/集成测试代码
 
 ### 代码质量
 - **命名空间封装**：使用`NewsUtils`命名空间，避免全局污染
@@ -436,7 +455,7 @@ processNewsFeedGroup4();  // 只处理组4
 - **错误处理完善**：全面的异常捕获和处理机制
 - **日志记录标准化**：统一使用`Utils.logStart/logEnd/logAction/logError`标准化函数，日志精简高效，保留核心信息
 - **配置灵活性**：支持全局和局部配置参数
-- **AI响应处理**：自动清理<think>思考标签，模型链支持快速切换和运行内熔断
+- **AI响应处理**：decision 层直接返回结构化概率；生成链返回的<think>思考标签自动清理，模型链支持快速切换和运行内熔断
 
 ### 可维护性
 - **配置集中管理**：所有配置参数集中在脚本开头
@@ -446,5 +465,5 @@ processNewsFeedGroup4();  // 只处理组4
 
 ---
 
-**状态**：生产环境可用（模型链架构、运行内熔断、4组触发器和去重机制）
+**状态**：生产环境可用（两层分类、运行内熔断、4组触发器和去重机制）
 **维护者**：Victor Cheng (hi@victor42.work)

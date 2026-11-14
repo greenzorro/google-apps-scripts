@@ -416,6 +416,99 @@ const UtilsAI = {
   },
 
   /**
+   * 调用 Gemini Decisions API，对同一段共享输入做闭合集判断（是/否、单选、有序打分）
+   *
+   * 该端点不生成任何文本：它对共享输入一次前向给每个问题打分，输出 token 恒为 0。
+   * 与 askGemini 的生成接口在路径、请求体、响应体上均不同，两者不可互换。
+   *
+   * @param {Object} options - 调用参数
+   * @param {string|Array<Object>} options.input - 所有问题共享的输入（文本，或多模态 Content 数组）
+   * @param {Object} options.questions - 问题映射，key 为问题ID（[A-Za-z0-9_-]+，最长64字符），
+   *   value 形如 {type: 'noul'|'choice'|'score', instructions: string, criteria: ...}
+   * @param {string} options.model - 模型ID（默认 gemini-decision-1）
+   * @param {number} options.delaySeconds - 调用前延迟秒数
+   * @return {Object} {answers, usage}；answers 按问题ID索引：
+   *   noul 含 {type, noul, confidence}，choice/score 含 {type, probabilities, confidence}（score 另有 legend）
+   */
+  askGeminiDecision: function(options) {
+    const scriptProperties = PropertiesService.getScriptProperties();
+    const apiKey = scriptProperties.getProperty('GEMINI_API_KEY');
+    const config = this.normalizeOptions(options, 'geminiDecision', {
+      model: 'gemini-decision-1'
+    });
+
+    if (!apiKey) {
+      throw new Error('未配置 GEMINI_API_KEY');
+    }
+
+    if (!config.input || (typeof config.input === 'string' && !config.input.trim())) {
+      throw new Error('askGeminiDecision 需要 input（共享输入）');
+    }
+
+    if (!config.questions || typeof config.questions !== 'object' || Object.keys(config.questions).length === 0) {
+      throw new Error('askGeminiDecision 需要至少一个 questions');
+    }
+
+    Object.keys(config.questions).forEach(key => {
+      const question = config.questions[key];
+      if (!question || typeof question !== 'object') {
+        throw new Error(`question ${key} 必须是对象`);
+      }
+      if (['noul', 'choice', 'score'].indexOf(question.type) === -1) {
+        throw new Error(`question ${key} 的 type 不合法: ${question.type}`);
+      }
+      if (!question.instructions) {
+        throw new Error(`question ${key} 缺少 instructions`);
+      }
+      if (question.type !== 'noul' && !question.criteria) {
+        throw new Error(`question ${key} 缺少 criteria`);
+      }
+    });
+
+    this.sleepIfNeeded(config.delaySeconds);
+
+    // 该端点只接受 model / input / questions；
+    // 携带 safetySettings 或 generationConfig 会返回 400 unknown parameter
+    const url = `https://generativelanguage.googleapis.com/v1beta/decisions?key=${apiKey}`;
+    const requestData = {
+      model: config.model,
+      input: config.input,
+      questions: config.questions
+    };
+
+    const fetchOptions = {
+      'method': 'post',
+      'contentType': 'application/json',
+      'payload': JSON.stringify(requestData),
+      'muteHttpExceptions': true
+    };
+
+    try {
+      const { response, responseData, responseText } = this.fetchJson(url, fetchOptions);
+
+      if (response.getResponseCode() !== 200) {
+        throw this.buildApiError('Gemini Decisions', response, responseText);
+      }
+
+      if (!responseData || !responseData.answers) {
+        throw new Error(`Decisions API 响应缺少 answers 字段: ${String(responseText).substring(0, 200)}`);
+      }
+
+      const missingKeys = Object.keys(config.questions).filter(key => !responseData.answers[key]);
+      if (missingKeys.length > 0) {
+        throw new Error(`Decisions API 未返回问题答案: ${missingKeys.join(', ')}`);
+      }
+
+      return {
+        answers: responseData.answers,
+        usage: responseData.usage || {}
+      };
+    } catch (error) {
+      throw new Error(`请求失败: ${error.message}`);
+    }
+  },
+
+  /**
    * 向Deepseek API发送请求并获取AI回复
    * @param {Object} options - 调用参数
    * @returns {string} AI的回复内容

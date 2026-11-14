@@ -56,7 +56,7 @@ projects/google-apps-scripts/
 - `google_drive.js` - Google Drive文件清理脚本，支持多种清理场景
 - `google_sheets.js` - Google Sheets数据操作和微信公众号数据更新
 - `demo_models.js` - AI模型调用演示脚本
-- `news_feed.js` - RSS新闻AI过滤系统，从RSS源获取新闻，通过AI模型链分类过滤并保存到Drive（详细文档参见 [news_feed.md](news_feed.md)）
+- `news_feed.js` - RSS新闻AI过滤系统，从RSS源获取新闻，先经闭合集判断（Gemini Decisions）分类过滤，失败时回落生成式模型链，结果保存到Drive（详细文档参见 [news_feed.md](news_feed.md)）
 
 
 ## 4. 工具清单
@@ -147,6 +147,7 @@ projects/google-apps-scripts/
 - `UtilsAI.askGemini(options)` - 使用对象参数调用Gemini，支持 `prompt` / `messages` / `model` / `temperature` / `maxTokens` 等配置
 - `UtilsAI.askDeepseek(options)` - 使用对象参数调用DeepSeek，支持通用生成参数与 `deepseek.thinking` 等专有配置
 - `UtilsAI.askGroq(options)` - 使用对象参数调用Groq，支持通用生成参数与 `groq.reasoningEffort` 等专有配置
+- `UtilsAI.askGeminiDecision(options)` - 调用 Gemini Decisions API（默认 `gemini-decision-1`），对同一段共享输入批量回答是/否（`noul`）、单选（`choice`）、有序打分（`score`），返回校准概率与置信度；不生成文本、输出 token 恒为 0，与 `askGemini` 的生成接口不可互换
 
 #### 设计特点
 - **统一参数接口**：所有AI服务均使用对象参数，支持`prompt`、`messages`、`systemPrompt`等通用字段
@@ -252,7 +253,7 @@ return UtilsGoogleDrive.cleanFilesInFolder("Google AI Studio", {
   action: 'trash'
 });
 
-// 新增清理任务的配置模式
+// 自定义清理任务的配置模板
 function newCleanTask() {
   return UtilsGoogleDrive.cleanFilesInFolder("目标文件夹", {
     filters: [

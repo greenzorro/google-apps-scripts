@@ -76,8 +76,8 @@ const PERFORMANCE_CONFIG = {
 };
 
 /**
- * AI分类模型链配置
- * 按顺序尝试 Gemini(4-hydrogen) → Gemini(flash) → Groq(qwen) → DeepSeek。
+ * AI分类兜底链配置
+ * decision 层不可用时按顺序尝试 Gemini(4-hydrogen) → Gemini(flash) → Groq(qwen) → DeepSeek。
  */
 const AI_CLASSIFICATION_MODELS = [
   {
@@ -116,6 +116,34 @@ const AI_SUMMARIZATION_MODELS = [
     model: 'deepseek-flash'
   }
 ];
+
+/**
+ * AI分类的 decision 层配置
+ *
+ * mode 为 'primary' 时先走闭合集判断（不生成文本，一次请求同时判定分类与保存标记）；
+ * 调用失败或不可用时自动落到 AI_CLASSIFICATION_MODELS 生成链。
+ * mode 为 'off' 时行为与只有生成链时完全一致。
+ */
+const AI_DECISION_CONFIG = {
+  mode: 'primary', // 'off' | 'primary'
+  model: 'gemini-decision-1'
+};
+
+/**
+ * decision 层分类问题的候选类别描述
+ * choice 题型的候选键按 UTF-8 排序后打分，描述只用于消歧
+ */
+const AI_CATEGORY_CRITERIA = {
+  '政治新闻': '政府、政务、外交、国际关系、立法、政党、官员与人事、政策制定',
+  '财经新闻': '经济、金融、市场行情、公司经营与业绩、贸易、货币与利率',
+  '军事新闻': '军队、国防、武器装备、军事行动、战争与冲突',
+  '科技新闻': '科技产品、技术、互联网、人工智能、半导体、软件、消费电子',
+  '社会新闻': '民生、事故、灾害救援、教育、医疗、法律案件、公共服务',
+  '娱乐新闻': '影视、音乐、综艺、明星、演出、文艺',
+  '体育新闻': '体育赛事、运动队、运动员、竞技比赛',
+  '天气新闻': '气象、台风、气温、天气预报、自然灾害预警',
+  '其他新闻': '无法归入以上任何一类'
+};
 
 /**
  * AI模型运行内熔断状态
@@ -688,11 +716,131 @@ const NewsUtils = {
     },
 
     /**
-     * AI新闻分类函数
+     * 获取 decision 分类模型配置对象（用于生成熔断键）
+     * @return {Object} 模型配置
+     */
+    getDecisionModelConfig: function() {
+      return { provider: 'gemini', model: AI_DECISION_CONFIG.model };
+    },
+
+    /**
+     * 闭合集判断分类：一次请求同时判定分类与保存标记，不生成文本
+     *
+     * 调用成功即采用其结论；调用失败、响应异常或模型不可用时返回 null，由生成链兜底。
+     * @param {string} title - 新闻标题
+     * @return {Object|null} {shouldSave, category, confidence, decidedBy}，失败时为 null
+     */
+    classifyByDecision: function(title) {
+      if (AI_DECISION_CONFIG.mode !== 'primary') {
+        return null;
+      }
+
+      if (typeof UtilsAI === 'undefined' || typeof UtilsAI.askGeminiDecision !== 'function') {
+        return null;
+      }
+
+      const modelConfig = this.getDecisionModelConfig();
+      const modelKey = this.getModelKey(modelConfig);
+
+      if (this.isModelCircuitOpen(modelConfig)) {
+        Utils.logAction("跳过熔断decision分类", { name: modelKey });
+        return null;
+      }
+
+      const MAX_ATTEMPTS = 2; // 仅对没有 HTTP 状态码的偶发错误重试一次
+      const shortTitle = title.substring(0, 50) + (title.length > 50 ? '...' : '');
+
+      for (let attempt = 1; attempt <= MAX_ATTEMPTS; attempt++) {
+        try {
+          const result = UtilsAI.askGeminiDecision({
+            input: AI_CLASSIFICATION_PROMPT + title,
+            questions: {
+              category: {
+                type: 'choice',
+                instructions: '这条新闻标题最匹配哪一类新闻？',
+                criteria: AI_CATEGORY_CRITERIA
+              },
+              save: {
+                type: 'choice',
+                instructions: '按 input 中给定的分类规则，这条新闻的保存标记应为 0 还是 1？',
+                criteria: {
+                  '0': '保存标记为 0，即过滤掉、不保存',
+                  '1': '保存标记为 1，即保存'
+                }
+              }
+            }
+          });
+
+          const shouldSave = result.answers.save.choice === '1';
+          const category = result.answers.category.choice;
+
+          Utils.logAction("AI分类结果", {
+            title: shortTitle,
+            model: modelKey,
+            shouldSave: shouldSave,
+            category: category,
+            confidence: result.answers.save.confidence,
+            decidedBy: 'decision'
+          });
+
+          return {
+            shouldSave: shouldSave,
+            category: category,
+            confidence: result.answers.save.confidence,
+            decidedBy: 'decision'
+          };
+
+        } catch (error) {
+          const statusCode = this.getHttpStatusFromError(error);
+
+          // 400/404 说明接口或模型不可用，本次执行内不再尝试
+          if (statusCode === 400 || statusCode === 404) {
+            AI_MODEL_CIRCUIT_BREAKER[modelKey] = {
+              disabledUntil: Infinity,
+              statusCode: statusCode
+            };
+            Utils.logError(error, `decision分类不可用（HTTP ${statusCode}），本次执行内改走生成链`);
+            return null;
+          }
+
+          if (statusCode) {
+            this.updateModelCircuitBreaker(modelConfig, statusCode);
+            Utils.logError(error, `decision分类失败（HTTP ${statusCode}），改走生成链: ${shortTitle}`);
+            return null;
+          }
+
+          if (attempt === MAX_ATTEMPTS) {
+            Utils.logError(error, `decision分类失败，改走生成链: ${shortTitle}`);
+            return null;
+          }
+
+          Utilities.sleep(1000);
+        }
+      }
+
+      return null;
+    },
+
+    /**
+     * AI新闻分类函数：decision 层优先，生成链兜底
+     * @param {string} title - 新闻标题
+     * @return {Object} 包含shouldSave、category、decidedBy（decision 层另有 confidence）
+     */
+    classifyNewsByTitle: function(title) {
+      const decisionResult = this.classifyByDecision(title);
+      if (decisionResult) {
+        return decisionResult;
+      }
+
+      return this.classifyByGenerationChain(title);
+    },
+
+    /**
+     * 生成式模型链分类（兜底路径）：按 AI_CLASSIFICATION_MODELS 顺序尝试
      * @param {string} title - 新闻标题
      * @return {Object} 包含shouldSave和category属性的对象
      */
-    classifyNewsByTitle: function(title) {
+    classifyByGenerationChain: function(title) {
       const prompt = AI_CLASSIFICATION_PROMPT + title;
       const MAX_ATTEMPTS_PER_MODEL = 2;
       const RETRY_DELAY_SECONDS = 1;
