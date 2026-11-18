@@ -1,8 +1,8 @@
 # Google Apps Scripts 项目备忘录
 
-给维护者与 Agent 看的内部备忘，记录仓库架构、工具库接口、业务脚本约定与不变量。面向使用者的能力介绍与部署流程见 [README.md](README.md)，RSS 新闻 AI 过滤系统的完整设计见 [news_feed.md](news_feed.md)。
+给维护者与 Agent 看的内部备忘，记录仓库架构、工具库接口、业务脚本约定与不变量。面向使用者的能力介绍与部署流程见 [README.md](README.md) / [README_ZH_CN.md](README_ZH_CN.md)，RSS 新闻 AI 过滤系统的完整设计见 [news_feed.md](news_feed.md)。
 
-**维护约定：** 修改脚本逻辑、模型配置、脚本属性或目录结构后，同步更新本文档（以及关联的 `README.md` / `news_feed.md`），使其始终准确描述当前实现。
+**维护约定：** 修改脚本逻辑、模型配置、脚本属性或目录结构后，同步更新本文档（以及关联的 `README.md` / `README_ZH_CN.md` / `news_feed.md`），使其始终准确描述当前实现。
 
 ---
 
@@ -27,7 +27,8 @@ google-apps-scripts/
 ├── .clasp.json            # clasp 绑定配置（目标 scriptId）
 ├── .gitignore
 ├── LICENSE                # MIT
-├── README.md              # 仓库介绍与部署入口（面向使用者及首次部署 Agent）
+├── README.md              # 仓库介绍（英文）与 # For Agent 部署入口
+├── README_ZH_CN.md        # 仓库介绍（中文）
 ├── notes.md               # 本文档（面向维护者与 Agent 的技术备忘）
 ├── news_feed.md           # RSS 新闻 AI 过滤系统专项文档
 ├── authorization.js       # 项目级 OAuth 授权与基础服务可用性自检
