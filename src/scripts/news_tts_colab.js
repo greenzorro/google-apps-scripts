@@ -15,7 +15,7 @@ const NEWS_TTS_COLAB_CONFIG = {
   accelerator: 'L4', // 'L4' (支持原生 bf16) 或 'T4'
   rawBaseUrl: 'https://raw.githubusercontent.com/greenzorro/google-apps-scripts/main/colab',
   maxArticlesPerRun: 60,
-  batchSize: 5,
+  batchSize: 3,
   cachePrefix: 'TTS_JOB_',
   cacheTtlSeconds: 7200
 };
@@ -179,6 +179,29 @@ const NewsTtsColab = {
       proxyUrl: postRes.runtimeProxyInfo.url.replace(/\/+$/, ''),
       proxyToken: postRes.runtimeProxyInfo.token
     };
+  },
+
+  /**
+   * 通过纯 HTTP 刷新 Colab Tunnel Frontend 的会话活跃时间戳，防止长任务被空闲回收
+   * @param {string} accessToken
+   * @param {string} endpoint
+   * @returns {{ok: boolean, status: number}}
+   */
+  keepAliveRuntime: function(accessToken, endpoint) {
+    if (!endpoint) return { ok: false, status: 0 };
+    const url = `https://colab.research.google.com/tun/m/${encodeURIComponent(endpoint)}/keep-alive/?authuser=0`;
+    const response = UrlFetchApp.fetch(url, {
+      method: 'get',
+      headers: {
+        'Authorization': `Bearer ${accessToken}`,
+        'Accept': 'application/json',
+        'X-Colab-Client-Agent': 'colab-cli',
+        'X-Colab-Tunnel': 'Google'
+      },
+      muteHttpExceptions: true
+    });
+    const code = response.getResponseCode();
+    return { ok: code >= 200 && code < 300, status: code };
   },
 
   /**
@@ -535,10 +558,27 @@ const NewsTtsColab = {
         return jsonOut({ ok: false, error: 'invalid_token' });
       }
 
-      if (payload.action === 'upload_batch') {
+      if (payload.action === 'heartbeat' || payload.action === 'upload_batch') {
+        cache.put(cacheKey, cachedRaw, NEWS_TTS_COLAB_CONFIG.cacheTtlSeconds);
+
+        let keepAlive = { ok: false, status: 0 };
+        if (jobState.endpoint) {
+          try {
+            const accessToken = this.getAccessToken();
+            keepAlive = this.keepAliveRuntime(accessToken, jobState.endpoint);
+          } catch (kaErr) {
+            Utils.logError(kaErr, `刷新 Colab 保活失败: ${jobState.endpoint}`);
+          }
+        }
+
+        if (payload.action === 'heartbeat') {
+          Utils.logAction('ColabTTS心跳保活', { jobId: jobId, stage: payload.stage || '', keepAlive: keepAlive });
+          return jsonOut({ ok: true, keepAlive: keepAlive });
+        }
+
         const saved = this.saveAudioBatch(payload.files);
-        Utils.logAction('接收Colab音频批次', { jobId: jobId, saved: saved });
-        return jsonOut({ ok: true, saved: saved });
+        Utils.logAction('接收Colab音频批次', { jobId: jobId, saved: saved, keepAlive: keepAlive });
+        return jsonOut({ ok: true, saved: saved, keepAlive: keepAlive });
       }
 
       if (payload.action === 'complete' || payload.action === 'error') {

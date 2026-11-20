@@ -73,6 +73,25 @@ def post_callback(callback_url: str, payload: dict, retries: int = 3) -> dict:
     raise RuntimeError(f"Callback failed after {retries} attempts: {last_err}")
 
 
+def send_heartbeat(
+    callback_url: str, job_id: str, callback_token: str, stage: str
+) -> None:
+    try:
+        resp = post_callback(
+            callback_url,
+            {
+                "action": "heartbeat",
+                "job_id": job_id,
+                "token": callback_token,
+                "stage": stage,
+            },
+            retries=1,
+        )
+        log(f"Heartbeat ({stage}) -> {resp}")
+    except Exception as exc:
+        log(f"Heartbeat ({stage}) ignored: {exc}")
+
+
 def bootstrap_and_reexec() -> None:
     with open(JOB_PATH, "r", encoding="utf-8") as f:
         job = json.load(f)
@@ -99,6 +118,8 @@ def bootstrap_and_reexec() -> None:
                 f"uv pip install --python {VENV_PYTHON} -e {REPO_DIR} "
                 f"huggingface_hub soundfile torchaudio"
             )
+
+        send_heartbeat(callback_url, job_id, callback_token, "env_ready")
 
         log("Re-executing inside isolated Python 3.11 environment...")
         proc = subprocess.run([VENV_PYTHON, "-u", __file__, "--infer"])
@@ -192,7 +213,7 @@ def run_inference() -> None:
     callback_token = job["callback_token"]
     ref_audio_path = job.get("ref_audio_path", "/content/ref_serena.wav")
     items = job.get("items", [])
-    batch_size = max(1, int(job.get("batch_size", 5)))
+    batch_size = max(1, int(job.get("batch_size", 3)))
 
     try:
         if not items:
@@ -225,6 +246,7 @@ def run_inference() -> None:
         )
         load_sec = round(time.time() - t_load0, 2)
         log(f"Model ready on {gpu_name} (bf16={use_bf16}) in dl={dl_sec}s load={load_sec}s")
+        send_heartbeat(callback_url, job_id, callback_token, "model_ready")
 
         batch_files: list[dict[str, str]] = []
         succeeded = 0
