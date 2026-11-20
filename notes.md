@@ -8,12 +8,12 @@
 
 ## 1. 项目概览与运行环境
 
-本项目是一套运行于 Google Apps Script（GAS）的个人工作区自动化脚本集合，覆盖日历监控、Gmail 整理、Google Drive 清理、Google Sheets 同步、AI 多模型调用以及 RSS 新闻收集与过滤。
+本项目是一套运行于 Google Apps Script（GAS）的个人工作区自动化脚本集合，覆盖日历监控、Gmail 整理、Google Drive 清理、Google Sheets 同步、AI 多模型调用、RSS 新闻收集与过滤，以及 Colab 旁路 TTS 增量合成。
 
 - **运行时与 Web App**：Google Apps Script V8（`src/appsscript.json`，含 `webapp` 配置：`executeAs: "USER_DEPLOYING"`、`access: "ANYONE_ANONYMOUS"`，供 Colab 无登录态回调 `doPost(e)`）
 - **时区与异常日志**：`Asia/Shanghai`、`STACKDRIVER`
-- **部署方式**：通过 `@google/clasp` 与线上脚本项目绑定（`.clasp.json`，`rootDir: "src"`，`projectId: apps-scripts-automation`）
-- **外部依赖**：无构建步骤与第三方 npm 包，全部基于 GAS 内置服务（`DriveApp`、`GmailApp`、`CalendarApp`、`SpreadsheetApp`、`PropertiesService`、`Utilities`、`UrlFetchApp`）
+- **部署方式**：通过 `@google/clasp` 与线上脚本项目绑定（`.clasp.json`，`rootDir: "src"`，`projectId: apps-scripts-automation`）；`colab/` 目录由 GitHub `main` 分支 Raw 地址托管，不推入 GAS
+- **外部依赖**：无构建步骤与第三方 npm 包，全部基于 GAS 内置服务（`DriveApp`、`GmailApp`、`CalendarApp`、`SpreadsheetApp`、`PropertiesService`、`CacheService`、`ContentService`、`Utilities`、`UrlFetchApp`）
 
 ---
 
@@ -34,7 +34,7 @@ google-apps-scripts/
 │   ├── tts_worker.py                # IndexTTS 2.5 推理与 MP3 批次回传脚本
 │   └── ref_serena.wav               # 7 秒冷静中性参考声纹母版
 └── src/
-    ├── appsscript.json              # GAS 运行时配置（V8、Asia/Shanghai、STACKDRIVER）
+    ├── appsscript.json              # GAS 运行时与 Web App 配置（V8、Asia/Shanghai、STACKDRIVER、ANYONE_ANONYMOUS）
     ├── utils/
     │   ├── utils.js                 # 核心工具库（Utils）
     │   ├── utils_google_drive.js    # Google Drive 工具库（UtilsGoogleDrive）
@@ -214,18 +214,36 @@ GAS 同一项目中的所有 `.js` 文件共享全局作用域。按能力拆分
 - 长文（> 500 字符）总结链为 `AI_SUMMARIZATION_MODELS`（`gemini-flash-lite-latest` → `openai/gpt-oss-120b` → `deepseek-flash`）；< 30 字符丢弃；30–500 字符直接保留原文。
 - 运行内熔断状态保存在 `AI_MODEL_CIRCUIT_BREAKER`（单次执行期内对 429、502/503/504、401/403/400/404 做分级跳过或禁用）。详细规则与 XML/内容解析细节见 [news_feed.md](news_feed.md)。
 
-### 5.8 `src/scripts/news_tts_colab.js`
+### 5.8 `src/scripts/news_tts_colab.js` 与 `colab/`
 
-- 入口函数：`triggerNewsTtsColab()`（生产批处理）、`testNewsTtsColabSingle()`（单篇冒烟测试）、`testColabDoorbellProtocol()`（无 GitHub 依赖的纯协议门铃测试）、`checkColabCcuBalance()`（查询 CCU 余额）与 Web App `doPost(e)`。
-- 零信任安全边界：Colab OAuth Token 仅使用 `openid` 与 `userinfo.email` 最小作用域；Colab 容器内不挂载 Google Drive，通过 GAS `CacheService` 签发的 2 小时一次性随机 Token 向 `doPost(e)` 回传 `.mp3` 批次并由 GAS 写回硬编码目录 `app_data/news_feed/audio`，完成或报错回调时由 GAS 调用 `/tun/m/unassign` 销毁实例。
-- 增量过滤：`collectPendingArticles()` 比对 `text/*.txt` 与 `audio/*.mp3`，全量已有对应音频时跳过 Colab 唤醒（0 CCU 消耗）。
-- 配套 Worker：`colab/tts_worker.py` 在 Colab 隔离 Python 3.11 环境中运行 `IndexTTS 2.5` + `colab/ref_serena.wav`，按句号 `。` 切句后无动态增益直出 `128 kbps` 单声道 MP3。
+- **入口函数**：`triggerNewsTtsColab()`（生产批处理，支持时间预算自动接力）、`testNewsTtsColabSingle()`（单篇冒烟测试，禁用接力）、`testColabDoorbellProtocol()`（无 GitHub 依赖的 CPU 门铃协议测试）、`checkColabCcuBalance()`（查询 CCU 余额与可用加速器）以及 Web App `doPost(e)`。
+- **双轨解耦与增量过滤**：`news_feed.js` 仅写 `app_data/news_feed/text/*.txt`；`collectPendingArticles()` 比对 `text/*.txt` 与 `app_data/news_feed/audio/*.mp3`，按更新时间倒序选取尚无同名音频的文章（单次上限 `maxArticlesPerRun: 60`）。全量命中时跳过 Colab 唤醒（0 CCU 消耗）。
+- **零信任与最小权限边界**：
+  - Colab OAuth Refresh Token 基于 `google-colab-cli` 公开 OAuth 客户端配置，仅申请 `openid` 与 `userinfo.email` 最小作用域，彻底剥离 Google Drive 与 GCP 权限。
+  - Colab 容器内不挂载 Google Drive、不持有任何网盘凭证；输入文本由 GAS 点火时通过 JSON 随任务下发，输出音频只能携带 `CacheService` 签发的 2 小时一次性随机 Token（`TTS_JOB_<jobId>`，`cacheTtlSeconds: 7200`）向 `doPost(e)` 回传，由 GAS 校验后写入硬编码目录 `app_data/news_feed/audio/`（强制 `.mp3` 扩展名并用 `Utils.safeFileName(..., 100)` 清洗文件名）。
+- **纯 HTTP 借壳点火协议（0 WebSocket）**：
+  1. `getAccessToken()` 用 `COLAB_REFRESH_TOKEN` 换取短期 `access_token`；
+  2. `assignRuntime()` 对 `https://colab.research.google.com/tun/m/assign` 先 `GET` 获取 `X-Goog-Colab-Token`（剥离 XSSI 前缀 `)]}'\n`），再 `POST` 分配实例（默认 `accelerator: 'L4'` 支持原生 `bf16`；支持 `'T4'` 或 CPU 测试 `'NONE'`），拿到 `endpoint`、`proxyUrl` 与 `proxyToken`；
+  3. `putRemoteTextFile()` 利用 `<proxyUrl>/api/contents/` 挂载于 Linux 根目录 `/` 的特性，先后写入 `/content/tts_job.json` 与 `/root/.ipython/profile_default/startup/00_tts.py`；
+  4. `startKernel()` 调用 `POST <proxyUrl>/api/kernels`（`{"name": "python3", "path": "content"}`）拉起内核，触发 IPython 启动钩子下载 `tts_worker.py` 并以 `start_new_session=True` 派生独立后台进程，GAS 随即结束退出；若点火任一步异常，GAS 立即调用 `unassignRuntime()` 退租并清缓存。
+- **时间预算与 `doPost` 自动接力**：
+  - Colab 对无浏览器/无 WebSocket 附着的纯 HTTP 后端实例会在约 18–21 分钟触发空闲回收。为此 `tts_worker.py` 在每篇起跑前检查总运行时长 `TTS_BOOT_TS` 是否达到 `max_wall_seconds`（默认 `780` 秒 / 13 分钟），达到预算即主动停止并上报 `stopped_early: true`。
+  - `doPost(e)` 在收到 `complete` 或 `error` 时销毁缓存条目并调用 `GET` + `POST /tun/m/unassign/<endpoint>` 退租实例；若 `complete` 携带 `stopped_early: true` 且启用 `autoContinue`（`triggerNewsTtsColab` 开启，单篇冒烟关闭），在未超过 `maxChainDepth: 10` 防护上限时自动调用 `triggerSynthesis()` 拉起下一台实例接续剩余篇目。
+- **Colab 无状态 Worker（`colab/tts_worker.py` + `colab/ref_serena.wav`）**：
+  - 自动从 `rawBaseUrl` 拉取静态 7 秒冷静中性参考音频 `ref_serena.wav`（`328 KB`），浅克隆 `index-tts/index-tts` 并用 `uv` 建立 Python 3.11 独立虚拟环境 `/content/venv_idx`（规避 Colab 默认 Python 3.13 兼容冲突），从 Hugging Face 拉取 `IndexTeam/IndexTTS-2.5`（计算能力 `>= 8.0` 时自动启用 `use_bf16=True`）。
+  - 结构化防漏读分句（`split_news_sentences`）：合并 `AI总结：` / `新闻原文：` 标识行，按 `。！？!?` 切分为短句（超过 150 字的长从句再按逗号/分号拆分），零正则读音补丁；句间插入 `0.18s` 静音。
+  - 无失真直出编码：直接调用 `ffmpeg -ac 1 -b:a 128k` 按原生采样率（`22050 Hz`）直出单声道 `128 kbps` MP3，禁用 `loudnorm` / `dynaudnorm` 动态增益滤镜以避免句尾衰减被拉高形成假回声。
+  - 分批回传：每完成 `batchSize: 3` 篇通过 `upload_batch`（Base64 JSON POST，带 3 次重试）回传 GAS。
+- **运行基线与可迁移性**：
+  - L4 GPU 费率约 `1.94 CCU/h`；单台冷启动（`uv` 环境 + `IndexTTS 2.5` 加载）约 `3.5 min`，单篇合成约 `75–90s`；在 `maxWallSeconds: 780` 接力模式下单机约完成 8 篇（实际存活 ~14.5 分钟），53 篇日量约耗 ~3.0 CCUs（月度 ~90 CCUs，占 Google AI Pro 每月 200 CCUs 赠品额度的 ~45%）。
+  - GAS 侧读取 50+ 篇 `.txt` 与纯 HTTP 点火共耗时 ~43–53 秒；Worker 脚本本身无状态，可在需要时平移至本地 GPU 或其他 Serverless GPU 运行。
+  - 生命周期联动：`src/scripts/google_drive.js` 的 `gdriveCleanNewsFeed()` 统一清理 `text/` 与 `audio/` 中早于 18 小时的旧文件。
 
 ---
 
 ## 6. 权限与维护红线
 
-- **OAuth 权限范围**：遵循最小权限原则，仅依赖实际启用脚本涉及的服务（Calendar `calendar`、Gmail `gmail.modify`、Drive `drive`、Sheets `spreadsheets`、外部网络 `script.external_request`）。
-- **`.clasp.json` 约定**：仓库已绑定目标 `scriptId`（`rootDir: "src"`），非明确要求不得改写为其它项目 ID。
+- **OAuth 权限范围**：遵循最小权限原则，仅依赖实际启用脚本涉及的服务（Calendar `calendar`、Gmail `gmail.modify`、Drive `drive`、Sheets `spreadsheets`、外部网络 `script.external_request`）。Colab OAuth 凭证严格限定 `openid` 与 `userinfo.email`，禁止授予 Google Drive 权限。
+- **`.clasp.json` 与 Web App 部署约定**：仓库已绑定目标 `scriptId`（`rootDir: "src"`），非明确要求不得改写为其它项目 ID；修改 `news_tts_colab.js` 的 `doPost` 回调逻辑后，必须执行 `clasp deploy -i <deploymentId>` 更新固定 Web App 部署（或同步更新脚本属性 `NEWS_TTS_WEBAPP_URL`），仅 `clasp push` 不会更新 Web App 版本。
 - **破坏性操作**：调整 `gmail.js` 或 `google_drive.js` 的筛选规则后，先以 `dryRun: true`（Drive）或小批验证确认匹配范围再上线定时触发器。
 - **安全约束**：禁止把 `GEMINI_API_KEY`、`DEEPSEEK_API_KEY`、`GROQ_API_KEY`、`COLAB_CLIENT_SECRET`、`COLAB_REFRESH_TOKEN` 或个人隐私凭证写入源码或提交进 Git。

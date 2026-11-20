@@ -2,9 +2,9 @@
 
 [🇬🇧 EN](https://github.com/greenzorro/google-apps-scripts/blob/main/README.md) | [🇨🇳 中文](https://github.com/greenzorro/google-apps-scripts/blob/main/README_ZH_CN.md)
 
-一套运行在 Google Apps Script 上的个人工作区自动化脚本集，覆盖日历变更监控、Gmail 整理、Google Drive 定时清理、Google Sheets 数据同步以及 RSS 新闻 AI 过滤与摘要。
+一套运行在 Google Apps Script 上的个人工作区自动化脚本集，覆盖日历变更监控、Gmail 整理、Google Drive 定时清理、Google Sheets 数据同步、RSS 新闻 AI 过滤与摘要，以及基于 Colab GPU 的旁路新闻语音合成。
 
-代码推送与部署由本机 Agent 通过 `clasp` 完成；你负责决定启用哪些能力、在浏览器里完成 Google OAuth 授权、将所需 API Key 填入脚本属性，并在 Apps Script 编辑器中设置定时触发器。
+代码推送与部署由本机 Agent 通过 `clasp` 完成；你负责决定启用哪些能力、在浏览器里完成 Google OAuth 授权、部署 Web App（若启用 Colab TTS）、将所需 API Key 填入脚本属性，并在 Apps Script 编辑器中设置定时触发器。
 
 ## 包含的能力
 
@@ -24,9 +24,9 @@
 完成部署后，日常配置都在 Google Apps Script 编辑器与 Google Workspace 内进行：
 
 - **OAuth 授权**：首次运行 `authorizeProject()` 或目标入口函数时，在浏览器弹窗中允许所需 Google 服务权限（敏感范围需在提示页继续授权）。
-- **脚本属性（API Key）**：使用 AI 相关能力时，前往 Apps Script 编辑器的「项目设置 → 脚本属性」，按需配置 `GEMINI_API_KEY`、`GROQ_API_KEY`、`DEEPSEEK_API_KEY`。
-- **定时触发器**：在编辑器左侧「触发器」中为需要周期执行的入口函数添加时间驱动触发器（例如按小时运行新闻收集、按天运行邮件归档与 Drive 清理）。
-- **RSS 新闻规则**：数据源、分类过滤规则、内容长度阈值与存储路径说明见 [news_feed.md](news_feed.md)。
+- **脚本属性（API Key 与 Colab 凭证）**：使用 AI 能力时，前往 Apps Script 编辑器的「项目设置 → 脚本属性」配置 `GEMINI_API_KEY`、`GROQ_API_KEY`、`DEEPSEEK_API_KEY`。使用 Colab 旁路 TTS 时，需将项目部署为 Web App（执行身份「我」、访问权限「任何人」），并配置 `COLAB_CLIENT_ID`、`COLAB_CLIENT_SECRET`、`COLAB_REFRESH_TOKEN` 与 `NEWS_TTS_WEBAPP_URL`。
+- **定时触发器**：在编辑器左侧「触发器」中为周期任务添加时间驱动触发器（例如错峰新闻收集、紧接最后一组新闻之后的 `triggerNewsTtsColab`，以及每日邮件归档与 Drive 清理）。
+- **RSS 新闻与双轨 TTS**：数据源、分类过滤规则、内容长度阈值、`text/` 与 `audio/` 双轨收听降级及存储路径说明见 [news_feed.md](news_feed.md)。
 - **清理安全建议**：`gmail.js` 与 `google_drive.js` 会将符合条件的内容移入垃圾桶/回收站；启用自动触发前，建议先结合个人目录习惯确认筛选条件。
 
 ## 延伸阅读

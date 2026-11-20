@@ -19,8 +19,8 @@
 - **多类别识别**：识别政治、财经、军事、科技、社会、娱乐、体育、天气、其他等9类新闻
 - **精确过滤规则**：
   - 自动排除体育、军事、娱乐类新闻
-  - 政治新闻中排除日本、韩国、台湾相关内容
-  - 排除国家公职人员贪污腐败违纪相关处置报道
+  - 政治新闻中排除日本、韩国、台湾内部政治新闻（与其他国家无关联），排除国家公职人员或国企/事业单位高管贪污腐败违纪处置报道，以及国家工作人员常规职务任免与人事调动
+  - 科技新闻中排除仅介绍某款具体电子产品/软件/汽车参数且不涉及商业形势、技术趋势或社会现象的文章，以及关于电子游戏或以电子游戏为主业公司的报道
 - **跨服务商兜底**：分类兜底链 Gemini(4-hydrogen) → Gemini(flash) → Groq(qwen3.8-27b) → DeepSeek；总结链 Gemini lite → Groq(gpt-oss-120b) → DeepSeek；单个模型不可用时自动切换
 - **运行内熔断**：同一次脚本执行中，429错误会跳过对应模型60秒，502/503/504错误会跳过15秒，401/403错误会停用该模型
 - **快速失败策略**：明确的HTTP错误会跳过当前模型后续重试，避免在不可用模型上消耗执行时间
@@ -142,7 +142,7 @@ const CONTENT_CONFIG = {
 
 ```javascript
 const AI_DECISION_CONFIG = {
-  mode: 'off', // 'off' | 'primary'
+  mode: 'primary', // 'off' | 'primary'
   model: 'gemini-decision-1'
 };
 ```
@@ -221,18 +221,22 @@ const AI_SUMMARIZATION_PROMPT = `请将以下新闻内容总结为不超过400�
 Google Drive/
 └── app_data/                    # 已有目录
     └── news_feed/               # 新闻收集根目录
-        └── text/                # 新闻文本存储目录
-            ├── 中美贸易谈判取得新进展.txt
-            ├── 央行降准释放流动性.txt
-            └── 人工智能新突破.txt
+        ├── text/                # 新闻文本存储目录（主轨输出）
+        │   ├── 中美贸易谈判取得新进展.txt
+        │   ├── 央行降准释放流动性.txt
+        │   └── 人工智能新突破.txt
+        └── audio/               # 旁路语音存储目录（Colab TTS 输出，同名一一对应）
+            ├── 中美贸易谈判取得新进展.mp3
+            ├── 央行降准释放流动性.mp3
+            └── 人工智能新突破.mp3
 ```
 
 ### 文件内容格式
 
 #### 新闻原文格式
 ```
-来源: 中新网
-分类: 财经新闻
+来源：中新网
+分类：财经新闻
 
 中美贸易谈判取得新进展
 
@@ -246,8 +250,8 @@ Google Drive/
 
 #### AI总结格式
 ```
-来源: cnbeta
-分类: 科技新闻
+来源：cnbeta
+分类：科技新闻
 
 苹果发布全新M3芯片
 
@@ -256,6 +260,15 @@ AI总结：
 
 [AI总结后的简洁版本，去除思考标签，保持内容简洁]
 ```
+
+## 🔊 旁路语音合成联动（Colab TTS）
+
+`src/scripts/news_feed.js` 与 `src/scripts/news_tts_colab.js` 采用**双轨解耦**设计：
+
+- **主轨不动，零侵入增量合成**：新闻抓取仅写入 `app_data/news_feed/text/*.txt`；在每日 4 组新闻收集（01:00–05:00）完成后，由 `triggerNewsTtsColab()`（每日 `05:00–06:00` 触发）扫描 `text/` 与 `audio/` 差集，仅将尚无同名 `.mp3` 的新闻送往 Colab GPU（`IndexTTS 2.5` + 静态参考声纹 `colab/ref_serena.wav`）按句号拆句合成为单声道 `128 kbps` `.mp3` 并写回 `app_data/news_feed/audio/`。
+- **一篇一文件与收听端无缝降级**：保留单篇独立 `.mp3` 便于车载蓝牙播放器切歌；若 Colab 额度停用或当日 `audio/` 为空，移动端可无痛退回由 `@Voice` 直接朗读 `text/*.txt`。
+- **双目录统一清理**：`src/scripts/google_drive.js` 中的 `gdriveCleanNewsFeed()` 同时扫描 `app_data/news_feed/text` 与 `app_data/news_feed/audio`，将创建时间早于 18 小时的旧文件移入回收站，保持两端生命周期同步。
+- **纯 HTTP 协议与安全边界**：Colab 零信任凭证约束、13 分钟时间预算接力及 `doPost(e)` 守门机制详见 [notes.md](notes.md)。
 
 ## 🔧 依赖关系
 
