@@ -10,13 +10,14 @@
 
 | 能力 | 主要脚本 | 入口函数 | 你需要准备的前提 |
 | :--- | :--- | :--- | :--- |
-| **项目授权自检** | `authorization.js` | `authorizeProject` | 浏览器完成 Google 账号授权 |
-| **日历变更监控** | `calendar.js` | `monitorCalendarChanges` | 默认 Google 日历 |
-| **Gmail 自动整理** | `gmail.js` | `gmailAutoArchive`、`gmailAutoTrash` | Gmail 收件箱（依赖星标保留重要会话） |
-| **Google Drive 清理** | `google_drive.js` | `gdriveCleanScreenshots`、`gdriveCleanAiStudio`、`gdriveCleanWechatMpData`、`gdriveCleanNewsFeed` | Drive 对应目标文件夹 |
-| **微信公众号数据同步** | `google_sheets.js` | `mpWechatDataUpdate` | Drive `app_data/Backup/mp_wechat` 当日数据文件、表格「微信公众号数据」 |
-| **RSS 新闻 AI 过滤** | `news_feed.js` | `processNewsFeedGroup1` – `processNewsFeedGroup4` | `GEMINI_API_KEY`（可选 `GROQ_API_KEY` / `DEEPSEEK_API_KEY`）、Drive `app_data/news_feed/text` |
-| **AI 连通性测试** | `demo_models.js` | `testAllAIServices` | 已配置的 AI 服务 API Key |
+| **项目授权自检** | `src/scripts/authorization.js` | `authorizeProject` | 浏览器完成 Google 账号授权 |
+| **日历变更监控** | `src/scripts/calendar.js` | `monitorCalendarChanges` | 默认 Google 日历 |
+| **Gmail 自动整理** | `src/scripts/gmail.js` | `gmailAutoArchive`、`gmailAutoTrash` | Gmail 收件箱（依赖星标保留重要会话） |
+| **Google Drive 清理** | `src/scripts/google_drive.js` | `gdriveCleanScreenshots`、`gdriveCleanAiStudio`、`gdriveCleanWechatMpData`、`gdriveCleanNewsFeed` | Drive 对应目标文件夹 |
+| **微信公众号数据同步** | `src/scripts/google_sheets.js` | `mpWechatDataUpdate` | Drive `app_data/Backup/mp_wechat` 当日数据文件、表格「微信公众号数据」 |
+| **RSS 新闻 AI 过滤** | `src/scripts/news_feed.js` | `processNewsFeedGroup1` – `processNewsFeedGroup4` | `GEMINI_API_KEY`（可选 `GROQ_API_KEY` / `DEEPSEEK_API_KEY`）、Drive `app_data/news_feed/text` |
+| **Colab 旁路新闻 TTS** | `src/scripts/news_tts_colab.js` | `triggerNewsTtsColab`、`doPost` | 部署为 Web App，并配置 `COLAB_CLIENT_ID`、`COLAB_CLIENT_SECRET`、`COLAB_REFRESH_TOKEN`、`NEWS_TTS_WEBAPP_URL` |
+| **AI 连通性测试** | `src/scripts/demo_models.js` | `testAllAIServices` | 已配置的 AI 服务 API Key |
 
 ## 日常使用与配置
 

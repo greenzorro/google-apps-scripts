@@ -73,7 +73,7 @@
 
 ## ⚙️ 配置说明
 
-### RSS源配置 (`news_feed.js`)
+### RSS源配置 (`src/scripts/news_feed.js`)
 ```javascript
 const RSS_FEEDS = [
   {
@@ -262,14 +262,14 @@ AI总结：
 ### 必需依赖
 | 文件 | 功能 | 是否必需 |
 |------|------|----------|
-| `news_feed.js` | 主脚本 | ✅ 必需 |
-| `utils.js` | 核心工具库 | ✅ 必需 |
-| `utils_ai.js` | AI服务工具库 | ✅ 必需 |
-| `utils_google_drive.js` | Google Drive操作 | ✅ 必需 |
-| `utils_network.js` | 网络请求工具 | ✅ 必需 |
+| `src/scripts/news_feed.js` | 主脚本 | ✅ 必需 |
+| `src/utils/utils.js` | 核心工具库 | ✅ 必需 |
+| `src/utils/utils_ai.js` | AI服务工具库 | ✅ 必需 |
+| `src/utils/utils_google_drive.js` | Google Drive操作 | ✅ 必需 |
+| `src/utils/utils_network.js` | 网络请求工具 | ✅ 必需 |
 
 ### 部署建议
-1. **基础部署**：`utils.js` + `utils_ai.js` + `utils_google_drive.js` + `utils_network.js` + `news_feed.js`
+1. **基础部署**：`src/utils/utils.js` + `src/utils/utils_ai.js` + `src/utils/utils_google_drive.js` + `src/utils/utils_network.js` + `src/scripts/news_feed.js`
 2. **权限要求**：`https://www.googleapis.com/auth/drive` + `https://www.googleapis.com/auth/script.external_request`
 3. **API密钥配置**：在Google Apps Script编辑器中，通过"项目设置" → "脚本属性"配置 `GEMINI_API_KEY`、`GROQ_API_KEY`、`DEEPSEEK_API_KEY`（勿写入仓库）
 4. **触发器设置**：通过Google Apps Script编辑器图形界面配置每日定时执行
@@ -279,15 +279,15 @@ AI总结：
 ### 1. 脚本部署
 ```javascript
 // 在Google Apps Script编辑器中部署以下文件：
-// 1. utils.js              (核心工具库)
-// 2. utils_ai.js           (AI服务工具库)
-// 3. utils_google_drive.js (Google Drive操作)
-// 4. utils_network.js      (网络请求工具)
-// 5. news_feed.js          (主脚本)
+// 1. src/utils/utils.js              (核心工具库)
+// 2. src/utils/utils_ai.js           (AI服务工具库)
+// 3. src/utils/utils_google_drive.js (Google Drive操作)
+// 4. src/utils/utils_network.js      (网络请求工具)
+// 5. src/scripts/news_feed.js        (主脚本)
 ```
 
 ### 2. 配置RSS源
-根据需要修改`news_feed.js`开头的`RSS_FEEDS`配置：
+根据需要修改`src/scripts/news_feed.js`开头的`RSS_FEEDS`配置：
 - 添加新的RSS源URL
 - 配置`processGroups`指定在哪些入口函数中运行（数组格式，如[1, 3]）
 - 配置`maxEntriesPerFeed`控制该源目标新新闻数量（真正通过去重过滤的新闻数）

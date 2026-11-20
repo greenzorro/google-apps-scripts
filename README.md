@@ -10,13 +10,14 @@ Your local agent pushes and deploys the scripts with `clasp`; you decide which c
 
 | Capability | Script | Entrypoint(s) | What you need |
 | :--- | :--- | :--- | :--- |
-| **Authorization Check** | `authorization.js` | `authorizeProject` | Browser OAuth approval |
-| **Calendar Monitor** | `calendar.js` | `monitorCalendarChanges` | Default Google Calendar |
-| **Gmail Management** | `gmail.js` | `gmailAutoArchive`, `gmailAutoTrash` | Gmail inbox (starred threads are preserved) |
-| **Google Drive Cleanup** | `google_drive.js` | `gdriveCleanScreenshots`, `gdriveCleanAiStudio`, `gdriveCleanWechatMpData`, `gdriveCleanNewsFeed` | Target folders in Google Drive |
-| **WeChat MP Sheet Sync** | `google_sheets.js` | `mpWechatDataUpdate` | Daily files under `app_data/Backup/mp_wechat` and spreadsheet `微信公众号数据` |
-| **RSS News AI Filter** | `news_feed.js` | `processNewsFeedGroup1` – `processNewsFeedGroup4` | `GEMINI_API_KEY` (optional `GROQ_API_KEY` / `DEEPSEEK_API_KEY`) and Drive folder `app_data/news_feed/text` |
-| **AI Smoke Test** | `demo_models.js` | `testAllAIServices` | Configured AI API keys |
+| **Authorization Check** | `src/scripts/authorization.js` | `authorizeProject` | Browser OAuth approval |
+| **Calendar Monitor** | `src/scripts/calendar.js` | `monitorCalendarChanges` | Default Google Calendar |
+| **Gmail Management** | `src/scripts/gmail.js` | `gmailAutoArchive`, `gmailAutoTrash` | Gmail inbox (starred threads are preserved) |
+| **Google Drive Cleanup** | `src/scripts/google_drive.js` | `gdriveCleanScreenshots`, `gdriveCleanAiStudio`, `gdriveCleanWechatMpData`, `gdriveCleanNewsFeed` | Target folders in Google Drive |
+| **WeChat MP Sheet Sync** | `src/scripts/google_sheets.js` | `mpWechatDataUpdate` | Daily files under `app_data/Backup/mp_wechat` and spreadsheet `微信公众号数据` |
+| **RSS News AI Filter** | `src/scripts/news_feed.js` | `processNewsFeedGroup1` – `processNewsFeedGroup4` | `GEMINI_API_KEY` (optional `GROQ_API_KEY` / `DEEPSEEK_API_KEY`) and Drive folder `app_data/news_feed/text` |
+| **Colab Bypass News TTS** | `src/scripts/news_tts_colab.js` | `triggerNewsTtsColab`, `doPost` | Web App deployment + `COLAB_CLIENT_ID`, `COLAB_CLIENT_SECRET`, `COLAB_REFRESH_TOKEN`, `NEWS_TTS_WEBAPP_URL` |
+| **AI Smoke Test** | `src/scripts/demo_models.js` | `testAllAIServices` | Configured AI API keys |
 
 ## Day-to-day configuration
 
@@ -53,13 +54,14 @@ Deploy selected scripts from this repo to the bound Google Apps Script project v
 
 Confirm which capabilities the human wants enabled. Keep only the matching dependency set when deploying selectively:
 
-- Authorization check: `utils.js`, `authorization.js`
-- Calendar: `utils.js`, `calendar.js`
-- Gmail: `utils.js`, `gmail.js`
-- Drive cleanup: `utils.js`, `utils_google_drive.js`, `google_drive.js`
-- Sheets sync: `utils.js`, `utils_google_drive.js`, `utils_google_sheets.js`, `google_sheets.js`
-- AI smoke test: `utils.js`, `utils_ai.js`, `demo_models.js`
-- RSS news feed: `utils.js`, `utils_google_drive.js`, `utils_ai.js`, `utils_network.js`, `news_feed.js`
+- Authorization check: `src/utils/utils.js`, `src/scripts/authorization.js`
+- Calendar: `src/utils/utils.js`, `src/scripts/calendar.js`
+- Gmail: `src/utils/utils.js`, `src/scripts/gmail.js`
+- Drive cleanup: `src/utils/utils.js`, `src/utils/utils_google_drive.js`, `src/scripts/google_drive.js`
+- Sheets sync: `src/utils/utils.js`, `src/utils/utils_google_drive.js`, `src/utils/utils_google_sheets.js`, `src/scripts/google_sheets.js`
+- AI smoke test: `src/utils/utils.js`, `src/utils/utils_ai.js`, `src/scripts/demo_models.js`
+- RSS news feed: `src/utils/utils.js`, `src/utils/utils_google_drive.js`, `src/utils/utils_ai.js`, `src/utils/utils_network.js`, `src/scripts/news_feed.js`
+- Colab bypass news TTS: `src/utils/utils.js`, `src/utils/utils_google_drive.js`, `src/scripts/news_tts_colab.js` (requires Web App deployment)
 
 From the repo root, log in (if needed), push scripts, and open the Apps Script editor:
 
@@ -80,6 +82,7 @@ Entry functions executed in the Apps Script editor (or via `clasp run` when conf
 - `mpWechatDataUpdate` — import daily WeChat MP files into spreadsheet `微信公众号数据`
 - `testAllAIServices` — verify Gemini, DeepSeek, and Groq connectivity
 - `processNewsFeedGroup1` to `processNewsFeedGroup4` — run RSS news collection and AI filtering by feed group
+- `triggerNewsTtsColab` / `testNewsTtsColabSingle` / `testColabDoorbellProtocol` / `checkColabCcuBalance` — ignite Colab GPU/CPU synthesis, run a GitHub-free doorbell smoke test, or inspect Colab CCU balance
 
 ## One batched human gate
 
@@ -88,6 +91,7 @@ Present these human-only steps once together:
 - Complete Google OAuth and sensitive-scope prompts in the browser
 - Run `authorizeProject` (or the target entry function) once in the Apps Script editor so permissions stick
 - If AI features are enabled, add the needed keys under Project Settings → Script Properties: `GEMINI_API_KEY`, `GROQ_API_KEY`, `DEEPSEEK_API_KEY`
+- If Colab bypass TTS (`src/scripts/news_tts_colab.js`) is enabled, deploy as a Web App (`Execute as: Me`, `Who has access: Anyone`) and set Script Properties: `COLAB_CLIENT_ID`, `COLAB_CLIENT_SECRET`, `COLAB_REFRESH_TOKEN`, `NEWS_TTS_WEBAPP_URL`
 - Add time-driven triggers for recurring tasks and confirm Drive/Gmail cleanup rules before enabling live schedules
 
 ## Verify
