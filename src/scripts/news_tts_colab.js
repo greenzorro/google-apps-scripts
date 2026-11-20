@@ -15,6 +15,8 @@ const NEWS_TTS_COLAB_CONFIG = {
   accelerator: 'L4', // 'L4' (支持原生 bf16) 或 'T4'
   rawBaseUrl: 'https://raw.githubusercontent.com/greenzorro/google-apps-scripts/main/colab',
   maxArticlesPerRun: 60,
+  maxWallSeconds: 780,
+  maxChainDepth: 10,
   batchSize: 3,
   cachePrefix: 'TTS_JOB_',
   cacheTtlSeconds: 7200
@@ -179,29 +181,6 @@ const NewsTtsColab = {
       proxyUrl: postRes.runtimeProxyInfo.url.replace(/\/+$/, ''),
       proxyToken: postRes.runtimeProxyInfo.token
     };
-  },
-
-  /**
-   * 通过纯 HTTP 刷新 Colab Tunnel Frontend 的会话活跃时间戳，防止长任务被空闲回收
-   * @param {string} accessToken
-   * @param {string} endpoint
-   * @returns {{ok: boolean, status: number}}
-   */
-  keepAliveRuntime: function(accessToken, endpoint) {
-    if (!endpoint) return { ok: false, status: 0 };
-    const url = `https://colab.research.google.com/tun/m/${encodeURIComponent(endpoint)}/keep-alive/?authuser=0`;
-    const response = UrlFetchApp.fetch(url, {
-      method: 'get',
-      headers: {
-        'Authorization': `Bearer ${accessToken}`,
-        'Accept': 'application/json',
-        'X-Colab-Client-Agent': 'colab-cli',
-        'X-Colab-Tunnel': 'Google'
-      },
-      muteHttpExceptions: true
-    });
-    const code = response.getResponseCode();
-    return { ok: code >= 200 && code < 300, status: code };
   },
 
   /**
@@ -386,7 +365,7 @@ const NewsTtsColab = {
   /**
    * 公共底座：分配 Colab 实例、写入任务配置与启动钩子并拉起内核
    */
-  _launchColabJob: function(taskName, accelerator, hookCode, buildPayloadFn) {
+  _launchColabJob: function(taskName, accelerator, hookCode, buildPayloadFn, cacheMeta) {
     Utils.logStart(taskName);
     const creds = this.getRequiredProperties(true);
     const jobId = Utilities.getUuid();
@@ -407,7 +386,10 @@ const NewsTtsColab = {
 
       CacheService.getScriptCache().put(
         NEWS_TTS_COLAB_CONFIG.cachePrefix + jobId,
-        JSON.stringify({ token: callbackToken, endpoint: runtime.endpoint, total: itemCount }),
+        JSON.stringify(Object.assign(
+          { token: callbackToken, endpoint: runtime.endpoint, total: itemCount },
+          cacheMeta || {}
+        )),
         NEWS_TTS_COLAB_CONFIG.cacheTtlSeconds
       );
 
@@ -443,11 +425,12 @@ const NewsTtsColab = {
   },
 
   /**
-   * 触发一次 Colab 旁路 TTS 合成任务（Fire-and-Forget）
-   * @param {number=} maxItems - 可选，限制本次处理的最多文章数
+   * 触发一次 Colab 旁路 TTS 合成任务（Fire-and-Forget，支持时间预算内分批接力）
+   * @param {number=} maxItems - 可选，限制本次处理的最多文章数（传入时禁用自动接力）
+   * @param {number=} chainDepth - 内部接力计数
    */
-  triggerSynthesis: function(maxItems) {
-    const taskName = '新闻旁路TTS触发';
+  triggerSynthesis: function(maxItems, chainDepth = 0) {
+    const taskName = chainDepth > 0 ? `新闻旁路TTS接力(${chainDepth})` : '新闻旁路TTS触发';
     this.getRequiredProperties(true);
     const items = this.collectPendingArticles(maxItems);
 
@@ -470,8 +453,10 @@ const NewsTtsColab = {
         ref_audio_url: `${NEWS_TTS_COLAB_CONFIG.rawBaseUrl}/ref_serena.wav`,
         ref_audio_path: '/content/ref_serena.wav',
         batch_size: NEWS_TTS_COLAB_CONFIG.batchSize,
+        max_wall_seconds: NEWS_TTS_COLAB_CONFIG.maxWallSeconds,
         items: items
-      })
+      }),
+      { autoContinue: !maxItems, chainDepth: chainDepth }
     );
   },
 
@@ -558,27 +543,10 @@ const NewsTtsColab = {
         return jsonOut({ ok: false, error: 'invalid_token' });
       }
 
-      if (payload.action === 'heartbeat' || payload.action === 'upload_batch') {
-        cache.put(cacheKey, cachedRaw, NEWS_TTS_COLAB_CONFIG.cacheTtlSeconds);
-
-        let keepAlive = { ok: false, status: 0 };
-        if (jobState.endpoint) {
-          try {
-            const accessToken = this.getAccessToken();
-            keepAlive = this.keepAliveRuntime(accessToken, jobState.endpoint);
-          } catch (kaErr) {
-            Utils.logError(kaErr, `刷新 Colab 保活失败: ${jobState.endpoint}`);
-          }
-        }
-
-        if (payload.action === 'heartbeat') {
-          Utils.logAction('ColabTTS心跳保活', { jobId: jobId, stage: payload.stage || '', keepAlive: keepAlive });
-          return jsonOut({ ok: true, keepAlive: keepAlive });
-        }
-
+      if (payload.action === 'upload_batch') {
         const saved = this.saveAudioBatch(payload.files);
-        Utils.logAction('接收Colab音频批次', { jobId: jobId, saved: saved, keepAlive: keepAlive });
-        return jsonOut({ ok: true, saved: saved, keepAlive: keepAlive });
+        Utils.logAction('接收Colab音频批次', { jobId: jobId, saved: saved });
+        return jsonOut({ ok: true, saved: saved });
       }
 
       if (payload.action === 'complete' || payload.action === 'error') {
@@ -594,12 +562,24 @@ const NewsTtsColab = {
           }
         }
 
+        let chained = false;
         if (payload.action === 'complete') {
-          Utils.logAction('ColabTTS合成完成', Object.assign({ jobId: jobId, unassigned: unassigned }, payload.summary || {}));
+          const summary = payload.summary || {};
+          Utils.logAction('ColabTTS合成完成', Object.assign({ jobId: jobId, unassigned: unassigned }, summary));
+
+          const nextDepth = (jobState.chainDepth || 0) + 1;
+          if (summary.stopped_early && jobState.autoContinue && nextDepth <= NEWS_TTS_COLAB_CONFIG.maxChainDepth) {
+            try {
+              const nextRes = this.triggerSynthesis(undefined, nextDepth);
+              chained = Boolean(nextRes && nextRes.triggered);
+            } catch (chainErr) {
+              Utils.logError(chainErr, `ColabTTS自动接力点火失败 (depth=${nextDepth})`);
+            }
+          }
         } else {
           Utils.logError(new Error(String(payload.error || '未知错误')), `ColabTTS执行异常 (jobId=${jobId}, unassigned=${unassigned})`);
         }
-        return jsonOut({ ok: true, unassigned: unassigned });
+        return jsonOut({ ok: true, unassigned: unassigned, chained: chained });
       }
 
       return jsonOut({ ok: false, error: 'unsupported_action' });

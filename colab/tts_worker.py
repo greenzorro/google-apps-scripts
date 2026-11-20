@@ -73,26 +73,8 @@ def post_callback(callback_url: str, payload: dict, retries: int = 3) -> dict:
     raise RuntimeError(f"Callback failed after {retries} attempts: {last_err}")
 
 
-def send_heartbeat(
-    callback_url: str, job_id: str, callback_token: str, stage: str
-) -> None:
-    try:
-        resp = post_callback(
-            callback_url,
-            {
-                "action": "heartbeat",
-                "job_id": job_id,
-                "token": callback_token,
-                "stage": stage,
-            },
-            retries=1,
-        )
-        log(f"Heartbeat ({stage}) -> {resp}")
-    except Exception as exc:
-        log(f"Heartbeat ({stage}) ignored: {exc}")
-
-
 def bootstrap_and_reexec() -> None:
+    boot_ts = time.time()
     with open(JOB_PATH, "r", encoding="utf-8") as f:
         job = json.load(f)
 
@@ -119,10 +101,10 @@ def bootstrap_and_reexec() -> None:
                 f"huggingface_hub soundfile torchaudio"
             )
 
-        send_heartbeat(callback_url, job_id, callback_token, "env_ready")
-
         log("Re-executing inside isolated Python 3.11 environment...")
-        proc = subprocess.run([VENV_PYTHON, "-u", __file__, "--infer"])
+        env = os.environ.copy()
+        env["TTS_BOOT_TS"] = str(boot_ts)
+        proc = subprocess.run([VENV_PYTHON, "-u", __file__, "--infer"], env=env)
         if proc.returncode != 0:
             raise RuntimeError(f"Inference process exited with code {proc.returncode}")
     except Exception as exc:
@@ -203,6 +185,7 @@ def run_inference() -> None:
     from indextts.infer_v2_5 import IndexTTS2
 
     t_total0 = time.time()
+    boot_ts = float(os.environ.get("TTS_BOOT_TS", t_total0))
     os.makedirs(OUT_DIR, exist_ok=True)
 
     with open(JOB_PATH, "r", encoding="utf-8") as f:
@@ -214,6 +197,7 @@ def run_inference() -> None:
     ref_audio_path = job.get("ref_audio_path", "/content/ref_serena.wav")
     items = job.get("items", [])
     batch_size = max(1, int(job.get("batch_size", 3)))
+    max_wall_seconds = float(job.get("max_wall_seconds", 0) or 0)
 
     try:
         if not items:
@@ -246,15 +230,22 @@ def run_inference() -> None:
         )
         load_sec = round(time.time() - t_load0, 2)
         log(f"Model ready on {gpu_name} (bf16={use_bf16}) in dl={dl_sec}s load={load_sec}s")
-        send_heartbeat(callback_url, job_id, callback_token, "model_ready")
 
         batch_files: list[dict[str, str]] = []
         succeeded = 0
         failed = 0
+        stopped_early = False
         total_audio_sec = 0.0
         errors: list[str] = []
 
         for idx, item in enumerate(items, start=1):
+            if idx > 1 and max_wall_seconds > 0 and (time.time() - boot_ts) >= max_wall_seconds:
+                stopped_early = True
+                log(
+                    f"Time budget ({max_wall_seconds:.0f}s) reached at item "
+                    f"{idx}/{len(items)}; handing off cleanly."
+                )
+                break
             mp3_name = item["name"]
             text = item.get("text", "")
             try:
@@ -344,16 +335,21 @@ def run_inference() -> None:
             log(f"Uploaded final batch of {len(batch_files)} MP3s -> {resp}")
 
         total_sec = round(time.time() - t_total0, 2)
+        wall_sec = round(time.time() - boot_ts, 2)
+        processed = succeeded + failed
         summary = {
             "gpu": gpu_name,
             "use_bf16": use_bf16,
-            "processed": len(items),
+            "processed": processed,
             "succeeded": succeeded,
             "failed": failed,
+            "stopped_early": stopped_early,
+            "remaining": max(0, len(items) - processed),
             "total_audio_sec": round(total_audio_sec, 1),
             "dl_sec": dl_sec,
             "load_sec": load_sec,
             "total_sec": total_sec,
+            "wall_sec": wall_sec,
             "errors": errors[:10],
         }
         resp = post_callback(
