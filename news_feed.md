@@ -265,7 +265,7 @@ AI总结：
 
 `src/scripts/news_feed.js` 与 `src/scripts/news_tts_colab.js` 采用**双轨解耦**设计：
 
-- **主轨不动，零侵入增量合成**：新闻抓取仅写入 `app_data/news_feed/text/*.txt`；在每日 4 组新闻收集（01:00–05:00）完成后，由 `triggerNewsTtsColab()`（每日 `05:00–06:00` 触发）扫描 `text/` 与 `audio/` 差集，仅将尚无同名 `.mp3` 的新闻送往 Colab GPU（`IndexTTS 2.5` + 静态参考声纹 `colab/ref_serena.wav`）按句号拆句合成为单声道 `128 kbps` `.mp3` 并写回 `app_data/news_feed/audio/`。
+- **主轨不动，零侵入增量合成**：新闻抓取仅写入 `app_data/news_feed/text/*.txt`；在每日 4 组新闻收集（01:00–05:00）完成后，由 `triggerNewsTtsColab()`（每日 `05:00–06:00` 触发）扫描 `text/` 与 `audio/` 差集，仅将尚无同名 `.mp3` 的新闻送往 Colab GPU（`IndexTTS 2.5` + 静态参考声纹 `colab/ref_serena.wav`）按句号拆句，经静态前级增益与限幅稳幅后合成为约 `-15 LUFS` 的单声道 `128 kbps` `.mp3` 并写回 `app_data/news_feed/audio/`。
 - **一篇一文件与收听端无缝降级**：保留单篇独立 `.mp3` 便于车载蓝牙播放器切歌；若 Colab 额度停用或当日 `audio/` 为空，移动端可无痛退回由 `@Voice` 直接朗读 `text/*.txt`。
 - **双目录统一清理**：`src/scripts/google_drive.js` 中的 `gdriveCleanNewsFeed()` 同时扫描 `app_data/news_feed/text` 与 `app_data/news_feed/audio`，将创建时间早于 18 小时的旧文件移入回收站，保持两端生命周期同步。
 - **纯 HTTP 协议与安全边界**：Colab 零信任凭证约束、13 分钟时间预算接力及 `doPost(e)` 守门机制详见 [notes.md](notes.md)。

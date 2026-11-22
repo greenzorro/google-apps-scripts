@@ -244,6 +244,6 @@ GAS 同一项目中的所有 `.js` 文件共享全局作用域。按能力拆分
 ## 6. 权限与维护红线
 
 - **OAuth 权限范围**：遵循最小权限原则，仅依赖实际启用脚本涉及的服务（Calendar `calendar`、Gmail `gmail.modify`、Drive `drive`、Sheets `spreadsheets`、外部网络 `script.external_request`）。Colab OAuth 凭证严格限定 `openid` 与 `userinfo.email`，禁止授予 Google Drive 权限。
-- **`.clasp.json` 与 Web App 部署约定**：仓库已绑定目标 `scriptId`（`rootDir: "src"`），非明确要求不得改写为其它项目 ID；修改 `news_tts_colab.js` 的 `doPost` 回调逻辑后，必须执行 `clasp deploy -i <deploymentId>` 更新固定 Web App 部署（或同步更新脚本属性 `NEWS_TTS_WEBAPP_URL`），仅 `clasp push` 不会更新 Web App 版本。
+- **`.clasp.json` 与 Web App 部署约定**：仓库已绑定目标 `scriptId`（`rootDir: "src"`），非明确要求不得改写为其它项目 ID；修改 `news_tts_colab.js` 的 `doPost` 回调逻辑或其接力调用链依赖的配置/启动代码（如 `NEWS_TTS_COLAB_CONFIG`、`triggerSynthesis`）后，必须执行 `clasp deploy -i <deploymentId>` 更新固定 Web App 部署（或同步更新脚本属性 `NEWS_TTS_WEBAPP_URL`），仅 `clasp push` 只更新 Head 而不会更新接力回调所运行的 Web App 版本。
 - **破坏性操作**：调整 `gmail.js` 或 `google_drive.js` 的筛选规则后，先以 `dryRun: true`（Drive）或小批验证确认匹配范围再上线定时触发器。
 - **安全约束**：禁止把 `GEMINI_API_KEY`、`DEEPSEEK_API_KEY`、`GROQ_API_KEY`、`COLAB_CLIENT_SECRET`、`COLAB_REFRESH_TOKEN` 或个人隐私凭证写入源码或提交进 Git。

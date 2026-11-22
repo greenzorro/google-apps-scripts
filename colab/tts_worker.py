@@ -278,6 +278,7 @@ def run_inference() -> None:
 
                 ffmpeg_cmd = ["ffmpeg", "-y", "-i", joined_wav]
                 if abs(volume_db) > 1e-6:
+                    # Static gain + limiter (level=false disables auto-makeup; limit=0.84 keeps ~1.5dB MP3 TP headroom)
                     ffmpeg_cmd.extend(
                         [
                             "-af",

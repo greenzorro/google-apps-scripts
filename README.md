@@ -64,7 +64,7 @@ Confirm which capabilities the human wants enabled. Keep only the matching depen
 - RSS news feed: `src/utils/utils.js`, `src/utils/utils_google_drive.js`, `src/utils/utils_ai.js`, `src/utils/utils_network.js`, `src/scripts/news_feed.js`
 - Colab bypass news TTS: `src/utils/utils.js`, `src/utils/utils_google_drive.js`, `src/scripts/news_tts_colab.js`, and `src/appsscript.json` (`webapp` `USER_DEPLOYING` / `ANYONE_ANONYMOUS` for unauthenticated `doPost` callbacks)
 
-Note on capability boundary: `clasp push` syncs only `src/` (`rootDir: "src"`). `colab/` executes remotely inside Colab and is fetched via `raw.githubusercontent.com`, so any change to `colab/` must be pushed to GitHub `main`. When `doPost` in `src/scripts/news_tts_colab.js` changes, redeploy the pinned Web App deployment (`clasp deploy -i <deploymentId>`) rather than only running `clasp push`.
+Note on capability boundary: `clasp push` syncs only `src/` (`rootDir: "src"`). `colab/` executes remotely inside Colab and is fetched via `raw.githubusercontent.com`, so any change to `colab/` must be pushed to GitHub `main`. When `doPost` or any `triggerSynthesis` / `NEWS_TTS_COLAB_CONFIG` continuation code in `src/scripts/news_tts_colab.js` changes, redeploy the pinned Web App deployment (`clasp deploy -i <deploymentId>`) rather than only running `clasp push`.
 
 From the repo root, log in (if needed), push scripts, and open the Apps Script editor:
 
