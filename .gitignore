@@ -3,3 +3,5 @@
 .clasprc.json
 .env
 *.secret.*
+__pycache__/
+*.py[cod]
