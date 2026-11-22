@@ -232,7 +232,7 @@ GAS 同一项目中的所有 `.js` 文件共享全局作用域。按能力拆分
 - **Colab 无状态 Worker（`colab/tts_worker.py` + `colab/ref_serena.wav`）**：
   - 自动从 `rawBaseUrl` 拉取静态 7 秒冷静中性参考音频 `ref_serena.wav`（`328 KB`），浅克隆 `index-tts/index-tts` 并用 `uv` 建立 Python 3.11 独立虚拟环境 `/content/venv_idx`（规避 Colab 默认 Python 3.13 兼容冲突），从 Hugging Face 拉取 `IndexTeam/IndexTTS-2.5`（计算能力 `>= 8.0` 时自动启用 `use_bf16=True`）。
   - 结构化防漏读分句（`split_news_sentences`）：合并 `AI总结：` / `新闻原文：` 标识行，按 `。！？!?` 切分为短句（超过 150 字的长从句再按逗号/分号拆分），零正则读音补丁；句间插入 `0.18s` 静音。
-  - 无失真直出编码：直接调用 `ffmpeg -ac 1 -b:a 128k` 按原生采样率（`22050 Hz`）直出单声道 `128 kbps` MP3，禁用 `loudnorm` / `dynaudnorm` 动态增益滤镜以避免句尾衰减被拉高形成假回声。
+  - 静态响度控制与编码：由 `NEWS_TTS_COLAB_CONFIG.volumeDb`（默认 `14` dB）随任务下发 `volume_db`；非零时在 `ffmpeg` 阶段插入线性静态前级增益与固定阈值限幅滤镜 `volume=<volume_db>dB,alimiter=limit=0.84:attack=5:release=50:level=false`（禁用 `alimiter` 默认的 `level=true` 自动补增益，同时禁用 `loudnorm` / `dynaudnorm` 动态增益滤镜以避免句尾衰减被拉高形成假回声），按原生采样率（`22050 Hz`）输出单声道 `128 kbps` MP3，将成品稳定在约 `-15 LUFS`、真峰值 `≤ -1.0 dBTP`。
   - 分批回传：每完成 `batchSize: 3` 篇通过 `upload_batch`（Base64 JSON POST，带 3 次重试）回传 GAS。
 - **运行基线与可迁移性**：
   - L4 GPU 费率约 `1.94 CCU/h`；单台冷启动（`uv` 环境 + `IndexTTS 2.5` 加载）约 `3.5 min`，单篇合成约 `75–90s`；在 `maxWallSeconds: 780` 接力模式下单机约完成 8 篇（实际存活 ~14.5 分钟），53 篇日量约耗 ~3.0 CCUs（月度 ~90 CCUs，占 Google AI Pro 每月 200 CCUs 赠品额度的 ~45%）。

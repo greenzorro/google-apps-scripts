@@ -198,6 +198,7 @@ def run_inference() -> None:
     items = job.get("items", [])
     batch_size = max(1, int(job.get("batch_size", 3)))
     max_wall_seconds = float(job.get("max_wall_seconds", 0) or 0)
+    volume_db = float(job.get("volume_db", 0) or 0)
 
     try:
         if not items:
@@ -275,18 +276,17 @@ def run_inference() -> None:
                 mp3_path = os.path.join(OUT_DIR, mp3_name)
                 sf.write(joined_wav, full_wav, sr_out)
 
+                ffmpeg_cmd = ["ffmpeg", "-y", "-i", joined_wav]
+                if abs(volume_db) > 1e-6:
+                    ffmpeg_cmd.extend(
+                        [
+                            "-af",
+                            f"volume={volume_db:g}dB,alimiter=limit=0.84:attack=5:release=50:level=false",
+                        ]
+                    )
+                ffmpeg_cmd.extend(["-ac", "1", "-b:a", "128k", mp3_path])
                 subprocess.run(
-                    [
-                        "ffmpeg",
-                        "-y",
-                        "-i",
-                        joined_wav,
-                        "-ac",
-                        "1",
-                        "-b:a",
-                        "128k",
-                        mp3_path,
-                    ],
+                    ffmpeg_cmd,
                     stdout=subprocess.DEVNULL,
                     stderr=subprocess.DEVNULL,
                     check=True,
@@ -350,6 +350,7 @@ def run_inference() -> None:
             "load_sec": load_sec,
             "total_sec": total_sec,
             "wall_sec": wall_sec,
+            "volume_db": volume_db,
             "errors": errors[:10],
         }
         resp = post_callback(

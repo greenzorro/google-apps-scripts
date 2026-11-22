@@ -18,6 +18,7 @@ const NEWS_TTS_COLAB_CONFIG = {
   maxWallSeconds: 780,
   maxChainDepth: 10,
   batchSize: 3,
+  volumeDb: 14, // 静态前级增益（dB），配合限幅器将响度稳定至约 -15 LUFS
   cachePrefix: 'TTS_JOB_',
   cacheTtlSeconds: 7200
 };
@@ -454,6 +455,7 @@ const NewsTtsColab = {
         ref_audio_path: '/content/ref_serena.wav',
         batch_size: NEWS_TTS_COLAB_CONFIG.batchSize,
         max_wall_seconds: NEWS_TTS_COLAB_CONFIG.maxWallSeconds,
+        volume_db: NEWS_TTS_COLAB_CONFIG.volumeDb,
         items: items
       }),
       { autoContinue: !maxItems, chainDepth: chainDepth }
