@@ -175,6 +175,27 @@ def split_news_sentences(raw_text: str) -> list[str]:
     return final_chunks
 
 
+def build_audio_filters(speed: float, volume_db: float) -> list[str]:
+    """Build ordered ffmpeg -af filter chain (tempo before gain+limiter)."""
+    filters: list[str] = []
+    if speed > 0 and abs(speed - 1.0) > 1e-6:
+        remaining = speed
+        while remaining > 2.0:
+            filters.append("atempo=2.0")
+            remaining /= 2.0
+        while remaining < 0.5:
+            filters.append("atempo=0.5")
+            remaining /= 0.5
+        if abs(remaining - 1.0) > 1e-6:
+            filters.append(f"atempo={remaining:g}")
+    if abs(volume_db) > 1e-6:
+        # Static gain + limiter (level=false disables auto-makeup; limit=0.84 keeps ~1.5dB MP3 TP headroom)
+        filters.append(
+            f"volume={volume_db:g}dB,alimiter=limit=0.84:attack=5:release=50:level=false"
+        )
+    return filters
+
+
 def run_inference() -> None:
     import numpy as np
     import soundfile as sf
@@ -198,6 +219,7 @@ def run_inference() -> None:
     items = job.get("items", [])
     batch_size = max(1, int(job.get("batch_size", 3)))
     max_wall_seconds = float(job.get("max_wall_seconds", 0) or 0)
+    speed = float(job.get("speed", 1.0) or 1.0)
     volume_db = float(job.get("volume_db", 0) or 0)
 
     try:
@@ -277,14 +299,9 @@ def run_inference() -> None:
                 sf.write(joined_wav, full_wav, sr_out)
 
                 ffmpeg_cmd = ["ffmpeg", "-y", "-i", joined_wav]
-                if abs(volume_db) > 1e-6:
-                    # Static gain + limiter (level=false disables auto-makeup; limit=0.84 keeps ~1.5dB MP3 TP headroom)
-                    ffmpeg_cmd.extend(
-                        [
-                            "-af",
-                            f"volume={volume_db:g}dB,alimiter=limit=0.84:attack=5:release=50:level=false",
-                        ]
-                    )
+                af_filters = build_audio_filters(speed, volume_db)
+                if af_filters:
+                    ffmpeg_cmd.extend(["-af", ",".join(af_filters)])
                 ffmpeg_cmd.extend(["-ac", "1", "-b:a", "128k", mp3_path])
                 subprocess.run(
                     ffmpeg_cmd,
@@ -351,6 +368,7 @@ def run_inference() -> None:
             "load_sec": load_sec,
             "total_sec": total_sec,
             "wall_sec": wall_sec,
+            "speed": speed,
             "volume_db": volume_db,
             "errors": errors[:10],
         }

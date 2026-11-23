@@ -18,6 +18,7 @@ const NEWS_TTS_COLAB_CONFIG = {
   maxWallSeconds: 780,
   maxChainDepth: 10,
   batchSize: 3,
+  speed: 1.1, // 语速倍率（1.0 为默认；通过 ffmpeg atempo 无变调调节并前置在增益限幅之前）
   volumeDb: 14, // 静态前级增益（dB），配合限幅器将响度稳定至约 -15 LUFS
   cachePrefix: 'TTS_JOB_',
   cacheTtlSeconds: 7200
@@ -455,6 +456,7 @@ const NewsTtsColab = {
         ref_audio_path: '/content/ref_serena.wav',
         batch_size: NEWS_TTS_COLAB_CONFIG.batchSize,
         max_wall_seconds: NEWS_TTS_COLAB_CONFIG.maxWallSeconds,
+        speed: NEWS_TTS_COLAB_CONFIG.speed,
         volume_db: NEWS_TTS_COLAB_CONFIG.volumeDb,
         items: items
       }),
