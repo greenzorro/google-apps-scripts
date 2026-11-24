@@ -4,7 +4,7 @@
  * Created: 2025-12-09
  * Author: Victor Cheng
  * Email: hi@victor42.work
- * Description: AI服务工具函数库，提供多模型AI服务调用功能（Gemini、Deepseek、Groq）。
+ * Description: AI服务工具函数库，提供多模型AI服务调用功能（Gemini、Deepseek、OpenCode、Groq）。
  */
 
 /**
@@ -576,6 +576,97 @@ const UtilsAI = {
         }
       } else {
         throw this.buildApiError('DeepSeek', response, responseText);
+      }
+    } catch (error) {
+      throw new Error(`请求失败: ${error.message}`);
+    }
+  },
+
+  OPENCODE_ENDPOINTS: {
+    go: 'https://opencode.ai/zen/go/v1/chat/completions',
+    zen: 'https://opencode.ai/zen/v1/chat/completions'
+  },
+
+  /**
+   * 向OpenCode API发送请求并获取AI回复（支持 OpenCode Go 与 OpenCode Zen）
+   * @param {Object} options - 调用参数
+   * @param {string} [options.model='deepseek-v4.1-flash'] - 模型名称
+   * @param {string} [options.plan='go'] - 订阅/通道类型（'go' | 'zen'）
+   * @param {string} [options.sessionId] - 会话ID（对应 x-opencode-session 请求头）；默认自动生成 UUID
+   * @returns {string} AI的回复内容
+   */
+  askOpencode: function(options) {
+    const scriptProperties = PropertiesService.getScriptProperties();
+    const apiKey = scriptProperties.getProperty('OPENCODE_API_KEY');
+    const config = this.normalizeOptions(options, 'opencode', {
+      model: 'deepseek-v4.1-flash',
+      plan: 'go',
+      temperature: 0.7,
+      maxTokens: 8192,
+      topP: 1
+    });
+
+    if (!apiKey) {
+      throw new Error('未配置 OPENCODE_API_KEY');
+    }
+
+    const url = Object.prototype.hasOwnProperty.call(this.OPENCODE_ENDPOINTS, config.plan)
+      ? this.OPENCODE_ENDPOINTS[config.plan]
+      : null;
+    if (!url) {
+      throw new Error(`不支持的 OpenCode plan: ${config.plan}（仅支持 go / zen）`);
+    }
+
+    this.sleepIfNeeded(config.delaySeconds);
+
+    const messages = this.buildOpenAIMessages(config);
+
+    const requestData = this.pickDefined({
+      model: config.model,
+      messages: messages,
+      max_tokens: config.maxTokens,
+      temperature: config.temperature,
+      top_p: config.topP,
+      stop: config.stop,
+      frequency_penalty: config.frequencyPenalty,
+      presence_penalty: config.presencePenalty,
+      response_format: typeof config.responseFormat === 'string'
+        ? { type: config.responseFormat }
+        : config.responseFormat,
+      seed: config.seed,
+      reasoning_effort: config.opencode.reasoningEffort
+    });
+
+    const sessionId = config.sessionId || config.opencode.sessionId || Utilities.getUuid();
+
+    const fetchOptions = {
+      'method': 'post',
+      'contentType': 'application/json',
+      'headers': {
+        'Authorization': 'Bearer ' + apiKey,
+        'x-opencode-session': sessionId
+      },
+      'payload': JSON.stringify(requestData),
+      'muteHttpExceptions': true
+    };
+
+    try {
+      const { response, responseData, responseText } = this.fetchJson(url, fetchOptions);
+
+      if (response.getResponseCode() === 200) {
+        const reply = responseData &&
+                     responseData.choices &&
+                     responseData.choices[0] &&
+                     responseData.choices[0].message &&
+                     responseData.choices[0].message.content;
+
+        if (reply) {
+          return reply;
+        } else {
+          throw new Error('无法从API响应中提取回复内容');
+        }
+      } else {
+        throw this.buildApiError('OpenCode', response, responseText);
       }
     } catch (error) {
       throw new Error(`请求失败: ${error.message}`);

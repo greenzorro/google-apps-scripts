@@ -21,7 +21,7 @@
   - 自动排除体育、军事、娱乐类新闻
   - 政治新闻中排除日本、韩国、台湾内部政治新闻（与其他国家无关联），排除国家公职人员或国企/事业单位高管贪污腐败违纪处置报道，以及国家工作人员常规职务任免与人事调动
   - 科技新闻中排除仅介绍某款具体电子产品/软件/汽车参数且不涉及商业形势、技术趋势或社会现象的文章，以及关于电子游戏或以电子游戏为主业公司的报道
-- **跨服务商兜底**：分类兜底链 Gemini(4-hydrogen) → Gemini(flash) → Groq(qwen3.8-27b) → DeepSeek；总结链 Gemini lite → Groq(gpt-oss-120b) → DeepSeek；单个模型不可用时自动切换
+- **跨服务商兜底**：分类兜底链 Gemini(4-hydrogen) → Gemini(flash) → Groq(qwen3.8-27b) → OpenCode Go(deepseek-v4.1-flash)；总结链 Gemini lite → Groq(gpt-oss-120b) → OpenCode Go(deepseek-v4.1-flash)；单个模型不可用时自动切换
 - **运行内熔断**：同一次脚本执行中，429错误会跳过对应模型60秒，502/503/504错误会跳过15秒，401/403错误会停用该模型
 - **快速失败策略**：明确的HTTP错误会跳过当前模型后续重试，避免在不可用模型上消耗执行时间
 
@@ -157,13 +157,13 @@ const AI_CLASSIFICATION_MODELS = [
   { provider: 'gemini', model: 'gemini-4-hydrogen' },
   { provider: 'gemini', model: 'gemini-flash-latest' },
   { provider: 'groq', model: 'qwen/qwen3.8-27b' },
-  { provider: 'deepseek', model: 'deepseek-flash' }
+  { provider: 'opencode', model: 'deepseek-v4.1-flash', plan: 'go' }
 ];
 
 const AI_SUMMARIZATION_MODELS = [
   { provider: 'gemini', model: 'gemini-flash-lite-latest' },
   { provider: 'groq', model: 'openai/gpt-oss-120b' },
-  { provider: 'deepseek', model: 'deepseek-flash' }
+  { provider: 'opencode', model: 'deepseek-v4.1-flash', plan: 'go' }
 ];
 ```
 
@@ -173,14 +173,14 @@ const AI_SUMMARIZATION_MODELS = [
 - decision 层成功即采用其结论，不再调用生成链。
 - 生成链中每个模型最多尝试2次。
 - 分类重试间隔为1秒，总结重试间隔为2秒。
-- 分类链中的 Gemini、DeepSeek 不单独传参，沿用 `UtilsAI.askGemini` / `askDeepseek` 的默认值（`temperature: 0.7`、`maxTokens: 8192`）。
+- 分类链中的 Gemini、OpenCode Go 不单独传参，沿用 `UtilsAI.askGemini` / `askOpencode` 的默认值（`temperature: 0.7`、`maxTokens: 8192`）。
 - 分类链中的 Groq（`qwen/qwen3.8-27b`）固定 `reasoningEffort: 'none'`、`maxTokens: 64`，关闭思考以降低 TPM 消耗。
-- 总结链统一 `temperature: 0.2`、`maxTokens: 512`。
+- 总结链默认 `temperature: 0.2`、`maxTokens: 512`（OpenCode Go 的 `deepseek-v4.1-flash` 因含推理 token，会按 `Math.max(maxTokens, 2048)` 保底）。
 - `429` 将对应模型临时跳过60秒。
 - `502`、`503`、`504` 将对应模型临时跳过15秒。
 - `401`、`403` 将对应模型在本次脚本执行内停用。
 - 格式错误、空响应等非 HTTP 可用性错误不触发熔断；当前模型按重试策略用尽后切换下一模型，下一篇新闻仍从模型链头部重试。
-- 脚本属性需配置：`GEMINI_API_KEY`、`GROQ_API_KEY`、`DEEPSEEK_API_KEY`。
+- 脚本属性需配置：`GEMINI_API_KEY`、`GROQ_API_KEY`、`OPENCODE_API_KEY`。
 
 ### AI分类提示词
 AI分类通过if...else逻辑结构实现精确的分类判断：
@@ -284,7 +284,7 @@ AI总结：
 ### 部署建议
 1. **基础部署**：`src/utils/utils.js` + `src/utils/utils_ai.js` + `src/utils/utils_google_drive.js` + `src/utils/utils_network.js` + `src/scripts/news_feed.js`
 2. **权限要求**：`https://www.googleapis.com/auth/drive` + `https://www.googleapis.com/auth/script.external_request`
-3. **API密钥配置**：在Google Apps Script编辑器中，通过"项目设置" → "脚本属性"配置 `GEMINI_API_KEY`、`GROQ_API_KEY`、`DEEPSEEK_API_KEY`（勿写入仓库）
+3. **API密钥配置**：在Google Apps Script编辑器中，通过"项目设置" → "脚本属性"配置 `GEMINI_API_KEY`、`GROQ_API_KEY`、`OPENCODE_API_KEY`（勿写入仓库）
 4. **触发器设置**：通过Google Apps Script编辑器图形界面配置每日定时执行
 
 ## 🚀 使用方法

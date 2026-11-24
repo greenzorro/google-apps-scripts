@@ -63,7 +63,7 @@ GAS 同一项目中的所有 `.js` 文件共享全局作用域。按能力拆分
 | `src/scripts/gmail.js` | `src/utils/utils.js` | 依赖日期计算与日志工具 |
 | `src/scripts/google_drive.js` | `src/utils/utils.js`、`src/utils/utils_google_drive.js` | 所有清理函数均委托给 `UtilsGoogleDrive.cleanFilesInFolder()` |
 | `src/scripts/google_sheets.js` | `src/utils/utils.js`、`src/utils/utils_google_drive.js`、`src/utils/utils_google_sheets.js` | 通过 Drive 定位当日文件后写入指定表格 |
-| `src/scripts/demo_models.js` | `src/utils/utils.js`、`src/utils/utils_ai.js` | 依次调用 Gemini / DeepSeek / Groq 验证可用性 |
+| `src/scripts/demo_models.js` | `src/utils/utils.js`、`src/utils/utils_ai.js` | 依次调用 Gemini / DeepSeek / OpenCode / Groq 验证可用性 |
 | `src/scripts/news_feed.js` | `src/utils/utils.js`、`src/utils/utils_google_drive.js`、`src/utils/utils_ai.js`、`src/utils/utils_network.js` | 自身内部另以 `NewsUtils` 分模块封装 |
 | `src/scripts/news_tts_colab.js` | `src/utils/utils.js`、`src/utils/utils_google_drive.js` | 内部以 `NewsTtsColab` 封装纯 HTTP Colab 点火与 `doPost` 守门接口 |
 
@@ -101,6 +101,7 @@ GAS 同一项目中的所有 `.js` 文件共享全局作用域。按能力拆分
 - 脚本属性键名：
   - `GEMINI_API_KEY`（Gemini 生成模型与 Gemini Decisions 共用）
   - `DEEPSEEK_API_KEY`
+  - `OPENCODE_API_KEY`
   - `GROQ_API_KEY`
   - `COLAB_CLIENT_ID`、`COLAB_CLIENT_SECRET`、`COLAB_REFRESH_TOKEN`、`NEWS_TTS_WEBAPP_URL`（Colab 旁路 TTS 触发与回调鉴权）
 - 业务参数（保留天数、批处理上限、目录路径、RSS 源配置、模型链）集中定义在各业务文件顶部常量中。
@@ -155,6 +156,7 @@ GAS 同一项目中的所有 `.js` 文件共享全局作用域。按能力拆分
 - **生成式调用接口**（统一接收对象参数，支持 `prompt` / `messages` / `systemPrompt` / `model` / `temperature` / `maxTokens` / `delaySeconds` 等）：
   - `askGemini(options)`：默认模型 `gemini-flash-lite-latest`
   - `askDeepseek(options)`：默认模型 `deepseek-flash`
+  - `askOpencode(options)`：默认模型 `deepseek-v4.1-flash`，支持 `plan: 'go' | 'zen'`（官方端点），自动通过 `Utilities.getUuid()` 注入 `x-opencode-session`（支持 `sessionId` 透传）
   - `askGroq(options)`：默认模型 `openai/gpt-oss-120b`
 - **闭合集判定接口**：
   - `askGeminiDecision(options)`：请求 `v1beta/decisions` 端点（默认模型 `gemini-decision-1`），对同一段 `input` 批量回答 `noul` / `choice` / `score` 问题，返回 `{ answers, usage }`（输出 token 恒为 0）。
@@ -205,13 +207,13 @@ GAS 同一项目中的所有 `.js` 文件共享全局作用域。按能力拆分
 ### 5.6 `src/scripts/demo_models.js`
 
 - 入口函数：`testAllAIServices()`
-- 依次用 `gemini-flash-lite-latest`、`deepseek-flash`、`openai/gpt-oss-120b` 发送单句测试提示词，用于验证脚本属性中的三套 API Key 与网络连通性。
+- 依次用 `gemini-flash-lite-latest`、`deepseek-flash`、`deepseek-v4.1-flash`（OpenCode Go）、`openai/gpt-oss-120b` 发送单句测试提示词，用于验证脚本属性中的四套 API Key 与网络连通性。
 
 ### 5.7 `src/scripts/news_feed.js`
 
 - 入口函数：`processNewsFeedGroup1()`、`processNewsFeedGroup2()`、`processNewsFeedGroup3()`、`processNewsFeedGroup4()`（均委托给 `processNewsFeedsByGroup(groupNumber)`）。
-- 分类采用两层架构：`AI_DECISION_CONFIG.mode === 'primary'` 时优先走 `gemini-decision-1` 闭合集一次判定类别（9 类，定义于 `AI_CATEGORY_CRITERIA`）与保存标记；不可用或报错时回落生成链 `AI_CLASSIFICATION_MODELS`（`gemini-4-hydrogen` → `gemini-flash-latest` → `qwen/qwen3.8-27b` → `deepseek-flash`）。
-- 长文（> 500 字符）总结链为 `AI_SUMMARIZATION_MODELS`（`gemini-flash-lite-latest` → `openai/gpt-oss-120b` → `deepseek-flash`）；< 30 字符丢弃；30–500 字符直接保留原文。
+- 分类采用两层架构：`AI_DECISION_CONFIG.mode === 'primary'` 时优先走 `gemini-decision-1` 闭合集一次判定类别（9 类，定义于 `AI_CATEGORY_CRITERIA`）与保存标记；不可用或报错时回落生成链 `AI_CLASSIFICATION_MODELS`（`gemini-4-hydrogen` → `gemini-flash-latest` → `qwen/qwen3.8-27b` → `deepseek-v4.1-flash`（OpenCode Go））。
+- 长文（> 500 字符）总结链为 `AI_SUMMARIZATION_MODELS`（`gemini-flash-lite-latest` → `openai/gpt-oss-120b` → `deepseek-v4.1-flash`（OpenCode Go））；< 30 字符丢弃；30–500 字符直接保留原文。
 - 运行内熔断状态保存在 `AI_MODEL_CIRCUIT_BREAKER`（单次执行期内对 429、502/503/504、401/403/400/404 做分级跳过或禁用）。详细规则与 XML/内容解析细节见 [news_feed.md](news_feed.md)。
 
 ### 5.8 `src/scripts/news_tts_colab.js` 与 `colab/`
@@ -246,4 +248,4 @@ GAS 同一项目中的所有 `.js` 文件共享全局作用域。按能力拆分
 - **OAuth 权限范围**：遵循最小权限原则，仅依赖实际启用脚本涉及的服务（Calendar `calendar`、Gmail `gmail.modify`、Drive `drive`、Sheets `spreadsheets`、外部网络 `script.external_request`）。Colab OAuth 凭证严格限定 `openid` 与 `userinfo.email`，禁止授予 Google Drive 权限。
 - **`.clasp.json` 与 Web App 部署约定**：仓库已绑定目标 `scriptId`（`rootDir: "src"`），非明确要求不得改写为其它项目 ID；修改 `news_tts_colab.js` 的 `doPost` 回调逻辑或其接力调用链依赖的配置/启动代码（如 `NEWS_TTS_COLAB_CONFIG`、`triggerSynthesis`）后，必须执行 `clasp deploy -i <deploymentId>` 更新固定 Web App 部署（或同步更新脚本属性 `NEWS_TTS_WEBAPP_URL`），仅 `clasp push` 只更新 Head 而不会更新接力回调所运行的 Web App 版本。
 - **破坏性操作**：调整 `gmail.js` 或 `google_drive.js` 的筛选规则后，先以 `dryRun: true`（Drive）或小批验证确认匹配范围再上线定时触发器。
-- **安全约束**：禁止把 `GEMINI_API_KEY`、`DEEPSEEK_API_KEY`、`GROQ_API_KEY`、`COLAB_CLIENT_SECRET`、`COLAB_REFRESH_TOKEN` 或个人隐私凭证写入源码或提交进 Git。
+- **安全约束**：禁止把 `GEMINI_API_KEY`、`DEEPSEEK_API_KEY`、`OPENCODE_API_KEY`、`GROQ_API_KEY`、`COLAB_CLIENT_SECRET`、`COLAB_REFRESH_TOKEN` 或个人隐私凭证写入源码或提交进 Git。

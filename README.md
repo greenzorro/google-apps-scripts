@@ -15,7 +15,7 @@ Your local agent pushes and deploys the scripts with `clasp`; you decide which c
 | **Gmail Management** | `src/scripts/gmail.js` | `gmailAutoArchive`, `gmailAutoTrash` | Gmail inbox (starred threads are preserved) |
 | **Google Drive Cleanup** | `src/scripts/google_drive.js` | `gdriveCleanScreenshots`, `gdriveCleanAiStudio`, `gdriveCleanWechatMpData`, `gdriveCleanNewsFeed` | Target folders in Google Drive |
 | **WeChat MP Sheet Sync** | `src/scripts/google_sheets.js` | `mpWechatDataUpdate` | Daily files under `app_data/Backup/mp_wechat` and spreadsheet `微信公众号数据` |
-| **RSS News AI Filter** | `src/scripts/news_feed.js` | `processNewsFeedGroup1` – `processNewsFeedGroup4` | `GEMINI_API_KEY` (optional `GROQ_API_KEY` / `DEEPSEEK_API_KEY`) and Drive folder `app_data/news_feed/text` |
+| **RSS News AI Filter** | `src/scripts/news_feed.js` | `processNewsFeedGroup1` – `processNewsFeedGroup4` | `GEMINI_API_KEY` (optional `GROQ_API_KEY` / `OPENCODE_API_KEY`) and Drive folder `app_data/news_feed/text` |
 | **Colab Bypass News TTS** | `src/scripts/news_tts_colab.js` | `triggerNewsTtsColab`, `doPost` | Web App deployment + `COLAB_CLIENT_ID`, `COLAB_CLIENT_SECRET`, `COLAB_REFRESH_TOKEN`, `NEWS_TTS_WEBAPP_URL` |
 | **AI Smoke Test** | `src/scripts/demo_models.js` | `testAllAIServices` | Configured AI API keys |
 
@@ -24,7 +24,7 @@ Your local agent pushes and deploys the scripts with `clasp`; you decide which c
 Once deployed, day-to-day setup happens inside the Apps Script editor and Google Workspace:
 
 - **OAuth consent**: On first manual execution of `authorizeProject()` or a target entrypoint, approve the requested Google Workspace scopes in the browser.
-- **Script Properties (API keys & Colab credentials)**: For AI features, open Project Settings → Script Properties and set `GEMINI_API_KEY`, `GROQ_API_KEY`, or `DEEPSEEK_API_KEY` as needed. For Colab bypass TTS, deploy the project as a Web App (`Execute as: Me`, `Who has access: Anyone`) and set `COLAB_CLIENT_ID`, `COLAB_CLIENT_SECRET`, `COLAB_REFRESH_TOKEN`, and `NEWS_TTS_WEBAPP_URL`.
+- **Script Properties (API keys & Colab credentials)**: For AI features, open Project Settings → Script Properties and set `GEMINI_API_KEY`, `GROQ_API_KEY`, `OPENCODE_API_KEY`, or `DEEPSEEK_API_KEY` as needed. For Colab bypass TTS, deploy the project as a Web App (`Execute as: Me`, `Who has access: Anyone`) and set `COLAB_CLIENT_ID`, `COLAB_CLIENT_SECRET`, `COLAB_REFRESH_TOKEN`, and `NEWS_TTS_WEBAPP_URL`.
 - **Time-driven triggers**: Under Triggers in the Apps Script editor, schedule recurring entrypoints (such as staggered RSS news groups, `triggerNewsTtsColab` in the hour after the last RSS group, and daily Gmail/Drive cleanup).
 - **RSS news & dual-track TTS**: Feed definitions, AI classification criteria, content thresholds, `text/` vs `audio/` dual-track playback fallback, and output paths are documented in [news_feed.md](news_feed.md).
 - **Cleanup safety**: `gmail.js` and `google_drive.js` move matching items to Trash; verify target folders and filter rules against your own data before turning on recurring cleanup triggers.
@@ -83,7 +83,7 @@ Entry functions executed in the Apps Script editor (or via `clasp run` when conf
 - `gmailAutoArchive` / `gmailAutoTrash` — archive threads older than 3 days / trash threads older than 365 days (unstarred only)
 - `gdriveCleanScreenshots` / `gdriveCleanAiStudio` / `gdriveCleanWechatMpData` / `gdriveCleanNewsFeed` — Drive folder cleanup tasks
 - `mpWechatDataUpdate` — import daily WeChat MP files into spreadsheet `微信公众号数据`
-- `testAllAIServices` — verify Gemini, DeepSeek, and Groq connectivity
+- `testAllAIServices` — verify Gemini, DeepSeek, OpenCode, and Groq connectivity
 - `processNewsFeedGroup1` to `processNewsFeedGroup4` — run RSS news collection and AI filtering by feed group
 - `triggerNewsTtsColab` — incrementally synthesize pending `text/*.txt` articles into `audio/*.mp3` via Colab L4 GPU with time-budgeted auto-handoff across chunks
 - `testNewsTtsColabSingle` — single-article end-to-end Colab L4 synthesis smoke test (auto-handoff disabled)
@@ -97,7 +97,7 @@ Present these human-only steps once together:
 
 - Complete Google OAuth and sensitive-scope prompts in the browser
 - Run `authorizeProject` (or the target entry function) once in the Apps Script editor so permissions stick
-- If AI features are enabled, add the needed keys under Project Settings → Script Properties: `GEMINI_API_KEY`, `GROQ_API_KEY`, `DEEPSEEK_API_KEY`
+- If AI features are enabled, add the needed keys under Project Settings → Script Properties: `GEMINI_API_KEY`, `GROQ_API_KEY`, `OPENCODE_API_KEY` (plus `DEEPSEEK_API_KEY` when running `demo_models.js`)
 - If Colab bypass TTS (`src/scripts/news_tts_colab.js`) is enabled, deploy as a Web App (`Execute as: Me`, `Who has access: Anyone`) and set Script Properties: `COLAB_CLIENT_ID`, `COLAB_CLIENT_SECRET`, `COLAB_REFRESH_TOKEN` (minted strictly with minimal `openid` and `userinfo.email` scopes, zero Drive scopes), `NEWS_TTS_WEBAPP_URL`
 - Add time-driven triggers for recurring tasks (scheduling `triggerNewsTtsColab` in the hour immediately after the last RSS news group) and confirm Drive/Gmail cleanup rules before enabling live schedules
 

@@ -15,7 +15,7 @@
 | **Gmail 自动整理** | `src/scripts/gmail.js` | `gmailAutoArchive`、`gmailAutoTrash` | Gmail 收件箱（依赖星标保留重要会话） |
 | **Google Drive 清理** | `src/scripts/google_drive.js` | `gdriveCleanScreenshots`、`gdriveCleanAiStudio`、`gdriveCleanWechatMpData`、`gdriveCleanNewsFeed` | Drive 对应目标文件夹 |
 | **微信公众号数据同步** | `src/scripts/google_sheets.js` | `mpWechatDataUpdate` | Drive `app_data/Backup/mp_wechat` 当日数据文件、表格「微信公众号数据」 |
-| **RSS 新闻 AI 过滤** | `src/scripts/news_feed.js` | `processNewsFeedGroup1` – `processNewsFeedGroup4` | `GEMINI_API_KEY`（可选 `GROQ_API_KEY` / `DEEPSEEK_API_KEY`）、Drive `app_data/news_feed/text` |
+| **RSS 新闻 AI 过滤** | `src/scripts/news_feed.js` | `processNewsFeedGroup1` – `processNewsFeedGroup4` | `GEMINI_API_KEY`（可选 `GROQ_API_KEY` / `OPENCODE_API_KEY`）、Drive `app_data/news_feed/text` |
 | **Colab 旁路新闻 TTS** | `src/scripts/news_tts_colab.js` | `triggerNewsTtsColab`、`doPost` | 部署为 Web App，并配置 `COLAB_CLIENT_ID`、`COLAB_CLIENT_SECRET`、`COLAB_REFRESH_TOKEN`、`NEWS_TTS_WEBAPP_URL` |
 | **AI 连通性测试** | `src/scripts/demo_models.js` | `testAllAIServices` | 已配置的 AI 服务 API Key |
 
@@ -24,7 +24,7 @@
 完成部署后，日常配置都在 Google Apps Script 编辑器与 Google Workspace 内进行：
 
 - **OAuth 授权**：首次运行 `authorizeProject()` 或目标入口函数时，在浏览器弹窗中允许所需 Google 服务权限（敏感范围需在提示页继续授权）。
-- **脚本属性（API Key 与 Colab 凭证）**：使用 AI 能力时，前往 Apps Script 编辑器的「项目设置 → 脚本属性」配置 `GEMINI_API_KEY`、`GROQ_API_KEY`、`DEEPSEEK_API_KEY`。使用 Colab 旁路 TTS 时，需将项目部署为 Web App（执行身份「我」、访问权限「任何人」），并配置 `COLAB_CLIENT_ID`、`COLAB_CLIENT_SECRET`、`COLAB_REFRESH_TOKEN` 与 `NEWS_TTS_WEBAPP_URL`。
+- **脚本属性（API Key 与 Colab 凭证）**：使用 AI 能力时，前往 Apps Script 编辑器的「项目设置 → 脚本属性」配置 `GEMINI_API_KEY`、`GROQ_API_KEY`、`OPENCODE_API_KEY`（若使用 `demo_models.js` 测试官方 DeepSeek 另加 `DEEPSEEK_API_KEY`）。使用 Colab 旁路 TTS 时，需将项目部署为 Web App（执行身份「我」、访问权限「任何人」），并配置 `COLAB_CLIENT_ID`、`COLAB_CLIENT_SECRET`、`COLAB_REFRESH_TOKEN` 与 `NEWS_TTS_WEBAPP_URL`。
 - **定时触发器**：在编辑器左侧「触发器」中为周期任务添加时间驱动触发器（例如错峰新闻收集、紧接最后一组新闻之后的 `triggerNewsTtsColab`，以及每日邮件归档与 Drive 清理）。
 - **RSS 新闻与双轨 TTS**：数据源、分类过滤规则、内容长度阈值、`text/` 与 `audio/` 双轨收听降级及存储路径说明见 [news_feed.md](news_feed.md)。
 - **清理安全建议**：`gmail.js` 与 `google_drive.js` 会将符合条件的内容移入垃圾桶/回收站；启用自动触发前，建议先结合个人目录习惯确认筛选条件。

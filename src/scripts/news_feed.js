@@ -77,7 +77,7 @@ const PERFORMANCE_CONFIG = {
 
 /**
  * AI分类兜底链配置
- * decision 层不可用时按顺序尝试 Gemini(4-hydrogen) → Gemini(flash) → Groq(qwen) → DeepSeek。
+ * decision 层不可用时按顺序尝试 Gemini(4-hydrogen) → Gemini(flash) → Groq(qwen) → OpenCode Go(deepseek-v4.1-flash)。
  */
 const AI_CLASSIFICATION_MODELS = [
   {
@@ -93,14 +93,15 @@ const AI_CLASSIFICATION_MODELS = [
     model: 'qwen/qwen3.8-27b'
   },
   {
-    provider: 'deepseek',
-    model: 'deepseek-flash'
+    provider: 'opencode',
+    model: 'deepseek-v4.1-flash',
+    plan: 'go'
   }
 ];
 
 /**
  * AI总结模型链配置
- * Gemini lite → Groq 高吞吐 → DeepSeek 付费兜底。
+ * Gemini lite → Groq 高吞吐 → OpenCode Go 兜底。
  */
 const AI_SUMMARIZATION_MODELS = [
   {
@@ -112,8 +113,9 @@ const AI_SUMMARIZATION_MODELS = [
     model: 'openai/gpt-oss-120b'
   },
   {
-    provider: 'deepseek',
-    model: 'deepseek-flash'
+    provider: 'opencode',
+    model: 'deepseek-v4.1-flash',
+    plan: 'go'
   }
 ];
 
@@ -878,6 +880,15 @@ const NewsUtils = {
           }));
         }
 
+        if (modelConfig.provider === 'opencode') {
+          if (typeof UtilsAI.askOpencode !== 'function') {
+            throw new Error('UtilsAI.askOpencode 不可用');
+          }
+          return UtilsAI.askOpencode(Object.assign({}, options, {
+            plan: modelConfig.plan || 'go'
+          }));
+        }
+
         if (modelConfig.provider === 'deepseek') {
           if (typeof UtilsAI.askDeepseek !== 'function') {
             throw new Error('UtilsAI.askDeepseek 不可用');
@@ -990,6 +1001,16 @@ const NewsUtils = {
             throw new Error('UtilsAI.askGroq 不可用');
           }
           return UtilsAI.askGroq(options);
+        }
+
+        if (modelConfig.provider === 'opencode') {
+          if (typeof UtilsAI.askOpencode !== 'function') {
+            throw new Error('UtilsAI.askOpencode 不可用');
+          }
+          return UtilsAI.askOpencode(Object.assign({}, options, {
+            plan: modelConfig.plan || 'go',
+            maxTokens: Math.max(options.maxTokens || 0, 2048)
+          }));
         }
 
         if (modelConfig.provider === 'deepseek') {
